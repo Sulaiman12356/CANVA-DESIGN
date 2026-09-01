@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   Mail,
@@ -8,7 +8,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { adminApi } from '../../utils/adminApi';
+import { adminApi, clearAdminToken } from '../../utils/adminApi';
 import { AdminUser } from '../../types';
 
 interface AdminLoginProps {
@@ -22,6 +22,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Clear any existing session token when arriving at login screen
+  useEffect(() => {
+    clearAdminToken();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

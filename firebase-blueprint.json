@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "Participant": {
+      "title": "Participant",
+      "description": "Registered student details for the Canva workshop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "full_name": { "type": "string" },
+        "email": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "device": { "type": "string" },
+        "canva_experience": { "type": "string" },
+        "learning_interest": { "type": "string" },
+        "status": { "type": "string" },
+        "ticket_number": { "type": "string" },
+        "registration_date": { "type": "string" }
+      },
+      "required": ["id", "full_name", "email", "whatsapp", "ticket_number"]
+    },
+    "AnalyticsEvent": {
+      "title": "AnalyticsEvent",
+      "description": "Tracking event for visitor funnel and interaction analytics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "event": { "type": "string" },
+        "url": { "type": "string" },
+        "source": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "event", "timestamp"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Administrator login and access log",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "last_login": { "type": "string" },
+        "ip": { "type": "string" }
+      },
+      "required": ["email", "name", "role"]
+    },
+    "ClassSettings": {
+      "title": "ClassSettings",
+      "description": "Configuration for dates, times, live classroom links, and WhatsApp group",
+      "type": "object",
+      "properties": {
+        "class_name": { "type": "string" },
+        "class_date": { "type": "string" },
+        "class_time": { "type": "string" },
+        "class_link": { "type": "string" },
+        "whatsapp_group_link": { "type": "string" },
+        "registration_status": { "type": "string" }
+      },
+      "required": ["class_name", "class_date", "whatsapp_group_link"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Administrative actions audit log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "admin_email": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "action", "timestamp"]
+    }
+  }
+}

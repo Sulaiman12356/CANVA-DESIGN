@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { adminDb } from './firebaseAdmin';
+import { syncDocumentToFirestore, deleteDocumentFromFirestore } from './firebaseSync';
 
 export interface ParticipantRecord {
   id: string;
@@ -362,55 +362,34 @@ class DatabaseManager {
 
   // --- FIREBASE FIRESTORE SYNC HELPERS ---
   public async syncAllToFirestore() {
-    if (!adminDb) return;
     try {
       // Sync class settings
-      await adminDb.collection('class_settings').doc('current').set(this.data.class_settings, { merge: true });
+      await syncDocumentToFirestore('class_settings', 'current', this.data.class_settings);
 
       // Sync email templates
       for (const tmpl of this.data.email_templates) {
-        await adminDb.collection('email_templates').doc(tmpl.id).set(tmpl, { merge: true });
+        await syncDocumentToFirestore('email_templates', tmpl.id, tmpl);
       }
     } catch (err: any) {
-      console.warn('Firestore bulk sync note:', err.message);
+      // Graceful background sync
     }
   }
 
   private syncParticipantToFirestore(p: ParticipantRecord) {
-    if (!adminDb) return;
-    adminDb
-      .collection('participants')
-      .doc(p.id)
-      .set(p, { merge: true })
-      .catch((err) => console.warn('Firestore participant sync error:', err.message));
+    syncDocumentToFirestore('participants', p.id, p).catch(() => {});
   }
 
   private syncAuditLogToFirestore(log: AuditLogRecord) {
-    if (!adminDb) return;
-    adminDb
-      .collection('audit_logs')
-      .doc(log.id)
-      .set(log, { merge: true })
-      .catch((err) => console.warn('Firestore audit log sync error:', err.message));
+    syncDocumentToFirestore('audit_logs', log.id, log).catch(() => {});
   }
 
   private syncAnalyticsEventToFirestore(ev: AnalyticsEventRecord) {
-    if (!adminDb) return;
-    adminDb
-      .collection('analytics_events')
-      .doc(ev.id)
-      .set(ev, { merge: true })
-      .catch((err) => console.warn('Firestore analytics event sync error:', err.message));
+    syncDocumentToFirestore('analytics_events', ev.id, ev).catch(() => {});
   }
 
   public syncAdminUserToFirestore(adminUser: { email: string; name: string; role: string; last_login: string; ip: string }) {
-    if (!adminDb) return;
     const docId = adminUser.email.replace(/[^a-zA-Z0-9_-]/g, '_');
-    adminDb
-      .collection('admin_users')
-      .doc(docId)
-      .set(adminUser, { merge: true })
-      .catch((err) => console.warn('Firestore admin_user sync error:', err.message));
+    syncDocumentToFirestore('admin_users', docId, adminUser).catch(() => {});
   }
 
   // --- PARTICIPANTS ---
@@ -458,9 +437,7 @@ class DatabaseManager {
     const deleted = this.data.participants.length < initialLen;
     if (deleted) {
       this.save();
-      if (adminDb) {
-        adminDb.collection('participants').doc(id).delete().catch((err) => console.warn('Firestore delete error:', err.message));
-      }
+      deleteDocumentFromFirestore('participants', id).catch(() => {});
     }
     return deleted;
   }
@@ -478,9 +455,7 @@ class DatabaseManager {
   public addEmailTemplate(template: EmailTemplateRecord): EmailTemplateRecord {
     this.data.email_templates.push(template);
     this.save();
-    if (adminDb) {
-      adminDb.collection('email_templates').doc(template.id).set(template, { merge: true }).catch(() => {});
-    }
+    syncDocumentToFirestore('email_templates', template.id, template).catch(() => {});
     return template;
   }
 
@@ -496,9 +471,7 @@ class DatabaseManager {
 
     this.data.email_templates[index] = updated;
     this.save();
-    if (adminDb) {
-      adminDb.collection('email_templates').doc(id).set(updated, { merge: true }).catch(() => {});
-    }
+    syncDocumentToFirestore('email_templates', id, updated).catch(() => {});
     return updated;
   }
 
@@ -508,9 +481,7 @@ class DatabaseManager {
     const deleted = this.data.email_templates.length < initialLen;
     if (deleted) {
       this.save();
-      if (adminDb) {
-        adminDb.collection('email_templates').doc(id).delete().catch(() => {});
-      }
+      deleteDocumentFromFirestore('email_templates', id).catch(() => {});
     }
     return deleted;
   }
@@ -686,9 +657,7 @@ class DatabaseManager {
       updated_at: new Date().toISOString(),
     };
     this.save();
-    if (adminDb) {
-      adminDb.collection('class_settings').doc('current').set(this.data.class_settings, { merge: true }).catch(() => {});
-    }
+    syncDocumentToFirestore('class_settings', 'current', this.data.class_settings).catch(() => {});
     return this.data.class_settings;
   }
 }

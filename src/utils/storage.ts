@@ -39,6 +39,34 @@ export const safeRemoveItem = (key: string): void => {
   }
 };
 
+export const safeGetSessionItem = (key: string, fallback: string | null = null): string | null => {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return fallback;
+    return sessionStorage.getItem(key) ?? fallback;
+  } catch (err) {
+    return fallback;
+  }
+};
+
+export const safeSetSessionItem = (key: string, value: string): boolean => {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return false;
+    sessionStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+export const safeRemoveSessionItem = (key: string): void => {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return;
+    sessionStorage.removeItem(key);
+  } catch (err) {
+    // Ignore
+  }
+};
+
 /**
  * Resizes and compresses an uploaded image file on the client before converting to Base64.
  * Keeps payload small (~30KB-80KB) to prevent QuotaExceededError.

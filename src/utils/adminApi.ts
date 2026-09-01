@@ -6,20 +6,26 @@ import {
   AuditLog,
   ClassSettings,
 } from '../types';
-import { safeGetItem, safeSetItem, safeRemoveItem } from './storage';
+import {
+  safeGetSessionItem,
+  safeSetSessionItem,
+  safeRemoveSessionItem,
+  safeRemoveItem,
+} from './storage';
 
 const TOKEN_KEY = 'cda_admin_auth_token';
 
 export function getAdminToken(): string | null {
-  return safeGetItem(TOKEN_KEY);
+  return safeGetSessionItem(TOKEN_KEY);
 }
 
 export function setAdminToken(token: string) {
-  safeSetItem(TOKEN_KEY, token);
+  safeSetSessionItem(TOKEN_KEY, token);
 }
 
 export function clearAdminToken() {
-  safeRemoveItem(TOKEN_KEY);
+  safeRemoveSessionItem(TOKEN_KEY);
+  safeRemoveItem(TOKEN_KEY); // Also clean any legacy persistent storage
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {

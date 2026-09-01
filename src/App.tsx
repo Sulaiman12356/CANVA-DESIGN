@@ -23,7 +23,7 @@ import { RegistrationFormData, AdminUser } from './types';
 import { getCapturedUTMs } from './utils/utm';
 import { initMetaPixel, trackPageView } from './utils/metaPixel';
 import { safeGetItem, safeSetItem } from './utils/storage';
-import { adminApi, getAdminToken } from './utils/adminApi';
+import { adminApi, getAdminToken, clearAdminToken } from './utils/adminApi';
 
 export type AppRoute = 'home' | 'thank-you' | 'admin-login' | 'admin-dashboard';
 
@@ -52,14 +52,13 @@ export default function App() {
     }
 
     // 4. Check current browser path and navigate accordingly
+    // Mandatory requirement: Always request for login before entering the Admin dashboard
     if (typeof window !== 'undefined') {
       const checkPath = () => {
         const path = window.location.pathname.toLowerCase();
-        const token = getAdminToken();
 
-        if (path.includes('/admin/dashboard') || (path.includes('/admin') && token)) {
-          setCurrentRoute('admin-dashboard');
-        } else if (path.includes('/admin') || path.includes('/login')) {
+        if (path.includes('/admin') || path.includes('/login')) {
+          // Always present the login screen first irrespective of how many times logged in or device used
           setCurrentRoute('admin-login');
         } else if (path.includes('/thank-you')) {
           setCurrentRoute('thank-you');
@@ -87,6 +86,11 @@ export default function App() {
   };
 
   const navigateTo = (route: AppRoute) => {
+    // If routing to admin-dashboard without an active verified login in this session, always redirect to login screen
+    if (route === 'admin-dashboard' && !adminUser) {
+      route = 'admin-login';
+    }
+
     setCurrentRoute(route);
     if (typeof window !== 'undefined') {
       let targetUrl = '/';
@@ -110,13 +114,25 @@ export default function App() {
 
   const handleAdminLoginSuccess = (user: AdminUser) => {
     setAdminUser(user);
-    navigateTo('admin-dashboard');
+    setCurrentRoute('admin-dashboard');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ page: 'admin-dashboard' }, '', '/admin/dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleAdminLogout = async () => {
     await adminApi.logout();
+    clearAdminToken();
     setAdminUser(null);
     navigateTo('admin-login');
+  };
+
+  const handleViewLandingPage = () => {
+    // Clear session when leaving admin dashboard so returning always requires login
+    clearAdminToken();
+    setAdminUser(null);
+    navigateTo('home');
   };
 
   const scrollToRegister = () => {
@@ -155,10 +171,18 @@ export default function App() {
 
   // ROUTE 1: Admin Dashboard (Protected)
   if (currentRoute === 'admin-dashboard') {
+    if (!adminUser) {
+      return (
+        <AdminLogin
+          onLoginSuccess={handleAdminLoginSuccess}
+          onNavigateHome={() => navigateTo('home')}
+        />
+      );
+    }
     return (
       <AdminDashboard
         onLogout={handleAdminLogout}
-        onViewLandingPage={() => navigateTo('home')}
+        onViewLandingPage={handleViewLandingPage}
       />
     );
   }
@@ -199,7 +223,7 @@ export default function App() {
       {/* Fixed Navigation Header */}
       <Header
         onRegisterClick={scrollToRegister}
-        onAdminClick={() => navigateTo('admin-dashboard')}
+        onAdminClick={() => navigateTo('admin-login')}
       />
 
       <main className="flex-grow">
@@ -255,7 +279,7 @@ export default function App() {
       <Footer
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
         onOpenTerms={() => setIsTermsOpen(true)}
-        onOpenAdmin={() => navigateTo('admin-dashboard')}
+        onOpenAdmin={() => navigateTo('admin-login')}
       />
 
       {/* 15. Mobile Persistent Sticky Register Action */}
