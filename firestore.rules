@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin users collection - strictly restricted to authenticated matching admin
+    match /admin_users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'ipesolasulaiman@gmail.com');
+      allow write: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+
+    // Public class settings (read-only for all, write for admin only)
+    match /class_settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+
+    // Participants collection: create allowed for registration, reads and updates restricted to admin
+    match /participants/{participantId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+
+    // Analytics events
+    match /analytics_events/{eventId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+
+    // Audit logs & Email templates - strictly admin only
+    match /audit_logs/{logId} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+    match /email_templates/{templateId} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'ipesolasulaiman@gmail.com';
+    }
+  }
+}

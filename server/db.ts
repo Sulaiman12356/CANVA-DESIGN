@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { adminDb } from './firebaseAdmin';
 
 export interface ParticipantRecord {
   id: string;
@@ -35,10 +36,27 @@ export interface ParticipantRecord {
   masterclass_interest: boolean;
   email_status: 'none' | 'pending' | 'sent' | 'failed';
   last_email_sent?: string;
+  email_error?: string;
+  email_attempts?: number;
+  retry_count?: number;
   admin_notes: string;
   ticket_number: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AnalyticsEventRecord {
+  id: string;
+  event: 'page_view' | 'view_content' | 'registration_started' | 'registration_completed' | 'whatsapp_click';
+  url: string;
+  source: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  session_id?: string;
+  ip_address?: string;
+  user_agent?: string;
+  timestamp: string;
 }
 
 export interface EmailTemplateRecord {
@@ -78,6 +96,7 @@ export interface DatabaseSchema {
   email_templates: EmailTemplateRecord[];
   audit_logs: AuditLogRecord[];
   class_settings: ClassSettingsRecord;
+  analytics_events?: AnalyticsEventRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -88,41 +107,37 @@ const INITIAL_TEMPLATES: EmailTemplateRecord[] = [
     id: 'tmpl_reg_confirmation',
     name: '1. Registration Confirmation',
     category: 'Onboarding',
-    subject: '🎉 Confirmed! Your Admission Pass & WhatsApp Class Access (Save Contact)',
+    subject: '🎉 Confirmed! Your Admission Pass for the Free 3-Day Canva Class',
     body: `Hello {{first_name}},
 
-Congratulations! Your registration for the **Clarity Digital Academy Free 3-Day Canva Design Class** is officially confirmed!
+You're officially registered for the Clarity Digital Academy FREE 3-Day Canva Design Class.
 
-Here are your admission details:
-• **Student Name**: {{full_name}}
-• **Admission Ticket**: #{{ticket_number}}
-• **Class Dates**: {{class_date}}
-• **Class Time**: {{class_time}}
-• **Device Mode**: {{device}}
+I'm glad to have you with us.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ CRITICAL ACTION 1: SAVE MR. CLARITY'S CONTACT NUMBER
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-To ensure you receive daily class broadcast announcements, Canva templates, and certificate verification without message loss, please save my contact number to your phone right now:
+Please keep an eye on your email and WhatsApp for important class updates.
 
-• **Instructor Name**: Onifade Sulaiman (Mr. Clarity)
-• **WhatsApp Phone Number**: +234 805 178 0169
-• **1-Click Message**: https://wa.me/2348051780169?text=Hello%20Mr.%20Clarity%2C%20my%20name%20is%20{{first_name}}.%20I%20have%20saved%20your%20number%20(Ticket%20%23{{ticket_number}}).%20Please%20save%20my%20contact!
+Get your Canva account ready, charge your device and come prepared to learn and practise.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📲 CRITICAL ACTION 2: JOIN THE OFFICIAL WHATSAPP GROUP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-All live video lessons, homework critiques, and Canva templates will be shared inside our private cohort room. Join below immediately before the group is locked:
+Your class details:
 
-👉 **Click to Join Group**: {{whatsapp_link}}
+Class:
+{{class_name}}
 
-Come ready to learn and practise. I look forward to mentoring you in class!
+Date:
+{{class_date}}
 
-Warm regards,
-**Onifade Sulaiman (Mr. Clarity)**
-Founder, Clarity Digital Academy
-"Learn Skills. Earn Globally."
-Email: ipesolasulaiman@gmail.com | WhatsApp: +234 805 178 0169`,
+Time:
+{{class_time}}
+
+WhatsApp Group:
+{{whatsapp_group_link}}
+
+See you in class.
+
+— Mr. Clarity
+Clarity Digital Academy
+
+Learn Skills. Earn Globally.`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -298,6 +313,7 @@ class DatabaseManager {
       email_templates: INITIAL_TEMPLATES,
       audit_logs: [],
       class_settings: INITIAL_SETTINGS,
+      analytics_events: [],
     };
     this.init();
   }
@@ -315,11 +331,17 @@ class DatabaseManager {
           email_templates: parsed.email_templates?.length ? parsed.email_templates : INITIAL_TEMPLATES,
           audit_logs: parsed.audit_logs || [],
           class_settings: { ...INITIAL_SETTINGS, ...(parsed.class_settings || {}) },
+          analytics_events: parsed.analytics_events || [],
         };
       } else {
         this.save();
       }
       this.isLoaded = true;
+
+      // Asynchronously sync initial state with Firebase Firestore
+      this.syncAllToFirestore().catch((err) => {
+        console.warn('Initial Firestore background sync note:', err?.message || err);
+      });
     } catch (err) {
       console.error('Error loading database file:', err);
       this.save();
@@ -336,6 +358,59 @@ class DatabaseManager {
     } catch (err) {
       console.error('Error persisting database:', err);
     }
+  }
+
+  // --- FIREBASE FIRESTORE SYNC HELPERS ---
+  public async syncAllToFirestore() {
+    if (!adminDb) return;
+    try {
+      // Sync class settings
+      await adminDb.collection('class_settings').doc('current').set(this.data.class_settings, { merge: true });
+
+      // Sync email templates
+      for (const tmpl of this.data.email_templates) {
+        await adminDb.collection('email_templates').doc(tmpl.id).set(tmpl, { merge: true });
+      }
+    } catch (err: any) {
+      console.warn('Firestore bulk sync note:', err.message);
+    }
+  }
+
+  private syncParticipantToFirestore(p: ParticipantRecord) {
+    if (!adminDb) return;
+    adminDb
+      .collection('participants')
+      .doc(p.id)
+      .set(p, { merge: true })
+      .catch((err) => console.warn('Firestore participant sync error:', err.message));
+  }
+
+  private syncAuditLogToFirestore(log: AuditLogRecord) {
+    if (!adminDb) return;
+    adminDb
+      .collection('audit_logs')
+      .doc(log.id)
+      .set(log, { merge: true })
+      .catch((err) => console.warn('Firestore audit log sync error:', err.message));
+  }
+
+  private syncAnalyticsEventToFirestore(ev: AnalyticsEventRecord) {
+    if (!adminDb) return;
+    adminDb
+      .collection('analytics_events')
+      .doc(ev.id)
+      .set(ev, { merge: true })
+      .catch((err) => console.warn('Firestore analytics event sync error:', err.message));
+  }
+
+  public syncAdminUserToFirestore(adminUser: { email: string; name: string; role: string; last_login: string; ip: string }) {
+    if (!adminDb) return;
+    const docId = adminUser.email.replace(/[^a-zA-Z0-9_-]/g, '_');
+    adminDb
+      .collection('admin_users')
+      .doc(docId)
+      .set(adminUser, { merge: true })
+      .catch((err) => console.warn('Firestore admin_user sync error:', err.message));
   }
 
   // --- PARTICIPANTS ---
@@ -356,6 +431,7 @@ class DatabaseManager {
   public addParticipant(participant: ParticipantRecord): ParticipantRecord {
     this.data.participants.unshift(participant);
     this.save();
+    this.syncParticipantToFirestore(participant);
     return participant;
   }
 
@@ -372,6 +448,7 @@ class DatabaseManager {
 
     this.data.participants[index] = updated;
     this.save();
+    this.syncParticipantToFirestore(updated);
     return updated;
   }
 
@@ -381,6 +458,9 @@ class DatabaseManager {
     const deleted = this.data.participants.length < initialLen;
     if (deleted) {
       this.save();
+      if (adminDb) {
+        adminDb.collection('participants').doc(id).delete().catch((err) => console.warn('Firestore delete error:', err.message));
+      }
     }
     return deleted;
   }
@@ -398,6 +478,9 @@ class DatabaseManager {
   public addEmailTemplate(template: EmailTemplateRecord): EmailTemplateRecord {
     this.data.email_templates.push(template);
     this.save();
+    if (adminDb) {
+      adminDb.collection('email_templates').doc(template.id).set(template, { merge: true }).catch(() => {});
+    }
     return template;
   }
 
@@ -413,6 +496,9 @@ class DatabaseManager {
 
     this.data.email_templates[index] = updated;
     this.save();
+    if (adminDb) {
+      adminDb.collection('email_templates').doc(id).set(updated, { merge: true }).catch(() => {});
+    }
     return updated;
   }
 
@@ -420,7 +506,12 @@ class DatabaseManager {
     const initialLen = this.data.email_templates.length;
     this.data.email_templates = this.data.email_templates.filter((t) => t.id !== id);
     const deleted = this.data.email_templates.length < initialLen;
-    if (deleted) this.save();
+    if (deleted) {
+      this.save();
+      if (adminDb) {
+        adminDb.collection('email_templates').doc(id).delete().catch(() => {});
+      }
+    }
     return deleted;
   }
 
@@ -445,7 +536,141 @@ class DatabaseManager {
       this.data.audit_logs = this.data.audit_logs.slice(0, 500);
     }
     this.save();
+    this.syncAuditLogToFirestore(log);
     return log;
+  }
+
+  // --- ANALYTICS EVENTS & FUNNEL ---
+
+  public addAnalyticsEvent(event: {
+    event: 'page_view' | 'view_content' | 'registration_started' | 'registration_completed' | 'whatsapp_click';
+    url?: string;
+    source?: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    session_id?: string;
+    ip_address?: string;
+    user_agent?: string;
+  }): AnalyticsEventRecord {
+    if (!this.data.analytics_events) {
+      this.data.analytics_events = [];
+    }
+
+    const record: AnalyticsEventRecord = {
+      id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      event: event.event,
+      url: event.url || '/',
+      source: event.source || event.utm_source || 'Direct',
+      utm_source: event.utm_source,
+      utm_medium: event.utm_medium,
+      utm_campaign: event.utm_campaign,
+      session_id: event.session_id,
+      ip_address: event.ip_address,
+      user_agent: event.user_agent,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.data.analytics_events.push(record);
+    if (this.data.analytics_events.length > 5000) {
+      this.data.analytics_events = this.data.analytics_events.slice(-5000);
+    }
+    this.save();
+    this.syncAnalyticsEventToFirestore(record);
+    return record;
+  }
+
+  public getAnalyticsEvents(): AnalyticsEventRecord[] {
+    return this.data.analytics_events || [];
+  }
+
+  public getAnalyticsSummary() {
+    const events = this.data.analytics_events || [];
+    const participants = this.data.participants;
+
+    const pageViewEvents = events.filter((e) => e.event === 'page_view');
+    const uniqueSessions = new Set(
+      pageViewEvents.map((e) => e.session_id || e.ip_address || e.id)
+    );
+    const totalVisitors = Math.max(pageViewEvents.length, uniqueSessions.size, participants.length > 0 ? participants.length + 1 : 1);
+
+    const regStartedEvents = events.filter((e) => e.event === 'registration_started');
+    const uniqueRegStarted = new Set(
+      regStartedEvents.map((e) => e.session_id || e.ip_address || e.id)
+    );
+    const regStartedCount = Math.max(regStartedEvents.length, uniqueRegStarted.size, participants.length);
+
+    const totalRegistered = participants.length;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayRegistrations = participants.filter((p) => p.registration_date === todayStr).length;
+
+    const whatsappClicks = events.filter((e) => e.event === 'whatsapp_click').length;
+    const whatsappJoinedCount = participants.filter(
+      (p) => p.whatsapp_joined || p.status === 'WHATSAPP JOINED'
+    ).length;
+    const totalWhatsappEngaged = Math.max(whatsappClicks, whatsappJoinedCount);
+
+    const emailsSent = participants.filter((p) => p.email_status === 'sent').length;
+    const emailsFailed = participants.filter((p) => p.email_status === 'failed').length;
+
+    const registrationConversionRate =
+      totalVisitors > 0 ? parseFloat(((totalRegistered / totalVisitors) * 100).toFixed(1)) : 0;
+
+    // Conversion Funnel: Visitors -> Reg Started -> Reg Completed -> WhatsApp Click -> Class Attendance
+    const classAttended = participants.filter(
+      (p) => p.attendance_day_1 || p.attendance_day_2 || p.attendance_day_3 || p.status.includes('ATTENDED')
+    ).length;
+
+    const funnel = [
+      {
+        step: 1,
+        name: 'Landing Page Visitors',
+        count: totalVisitors,
+        percentage: 100,
+        dropoff: totalVisitors > 0 ? Math.max(0, parseFloat((((totalVisitors - regStartedCount) / totalVisitors) * 100).toFixed(1))) : 0,
+      },
+      {
+        step: 2,
+        name: 'Registration Started',
+        count: regStartedCount,
+        percentage: totalVisitors > 0 ? parseFloat(((regStartedCount / totalVisitors) * 100).toFixed(1)) : 0,
+        dropoff: regStartedCount > 0 ? Math.max(0, parseFloat((((regStartedCount - totalRegistered) / regStartedCount) * 100).toFixed(1))) : 0,
+      },
+      {
+        step: 3,
+        name: 'Registration Completed',
+        count: totalRegistered,
+        percentage: totalVisitors > 0 ? parseFloat(((totalRegistered / totalVisitors) * 100).toFixed(1)) : 0,
+        dropoff: totalRegistered > 0 ? Math.max(0, parseFloat((((totalRegistered - totalWhatsappEngaged) / totalRegistered) * 100).toFixed(1))) : 0,
+      },
+      {
+        step: 4,
+        name: 'WhatsApp Group / Contact Click',
+        count: totalWhatsappEngaged,
+        percentage: totalRegistered > 0 ? parseFloat(((totalWhatsappEngaged / totalRegistered) * 100).toFixed(1)) : 0,
+        dropoff: totalWhatsappEngaged > 0 ? Math.max(0, parseFloat((((totalWhatsappEngaged - classAttended) / totalWhatsappEngaged) * 100).toFixed(1))) : 0,
+      },
+      {
+        step: 5,
+        name: 'Class Attendance',
+        count: classAttended,
+        percentage: totalRegistered > 0 ? parseFloat(((classAttended / totalRegistered) * 100).toFixed(1)) : 0,
+        dropoff: 0,
+      },
+    ];
+
+    return {
+      totalVisitors,
+      registrationStarted: regStartedCount,
+      totalRegistered,
+      todayRegistrations,
+      whatsappClicks: totalWhatsappEngaged,
+      emailsSent,
+      emailsFailed,
+      registrationConversionRate,
+      funnel,
+    };
   }
 
   // --- CLASS SETTINGS ---
@@ -461,6 +686,9 @@ class DatabaseManager {
       updated_at: new Date().toISOString(),
     };
     this.save();
+    if (adminDb) {
+      adminDb.collection('class_settings').doc('current').set(this.data.class_settings, { merge: true }).catch(() => {});
+    }
     return this.data.class_settings;
   }
 }

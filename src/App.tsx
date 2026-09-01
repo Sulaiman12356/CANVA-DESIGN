@@ -15,7 +15,6 @@ import { FAQ } from './components/FAQ';
 import { FinalCTA } from './components/FinalCTA';
 import { Footer } from './components/Footer';
 import { MobileStickyCTA } from './components/MobileStickyCTA';
-import { ConfigDrawer } from './components/ConfigDrawer';
 import { ThankYouPage } from './components/ThankYouPage';
 import { PrivacyPolicyModal, TermsModal, CookieNotice } from './components/LegalModals';
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -182,10 +181,6 @@ export default function App() {
           onNavigateHome={() => navigateTo('home')}
           registeredStudent={registeredStudent}
         />
-        <ConfigDrawer
-          onPhotoUpdated={(url) => setCustomPhotoUrl(url)}
-          onPreviewThankYou={() => navigateTo('thank-you')}
-        />
         <PrivacyPolicyModal
           isOpen={isPrivacyOpen}
           onClose={() => setIsPrivacyOpen(false)}
@@ -266,13 +261,7 @@ export default function App() {
       {/* 15. Mobile Persistent Sticky Register Action */}
       <MobileStickyCTA onRegisterClick={scrollToRegister} />
 
-      {/* 16. Config & Lead Management Drawer */}
-      <ConfigDrawer
-        onPhotoUpdated={(url) => setCustomPhotoUrl(url)}
-        onPreviewThankYou={() => navigateTo('thank-you')}
-      />
-
-      {/* 17. Legal Compliance Modals */}
+      {/* 16. Legal Compliance Modals */}
       <PrivacyPolicyModal
         isOpen={isPrivacyOpen}
         onClose={() => setIsPrivacyOpen(false)}
@@ -282,7 +271,7 @@ export default function App() {
         onClose={() => setIsTermsOpen(false)}
       />
 
-      {/* 18. Cookie & Measurement Consent Banner */}
+      {/* 17. Cookie & Measurement Consent Banner */}
       {showCookieNotice && (
         <CookieNotice
           onAccept={handleAcceptCookies}

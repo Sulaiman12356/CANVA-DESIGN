@@ -54,6 +54,7 @@ interface ParticipantTableProps {
   onDeleteParticipant: (participant: AdminParticipant) => void;
   onDownloadCSV: () => void;
   onOpenImportModal: () => void;
+  onResendConfirmation?: (participant: AdminParticipant) => Promise<void>;
 }
 
 export const STATUS_COLORS: Record<ParticipantStatus, { bg: string; text: string; border: string }> = {
@@ -114,9 +115,26 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
   onDeleteParticipant,
   onDownloadCSV,
   onOpenImportModal,
+  onResendConfirmation,
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [statusDropdownId, setStatusDropdownId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendSuccessId, setResendSuccessId] = useState<string | null>(null);
+
+  const handleResend = async (p: AdminParticipant) => {
+    if (!onResendConfirmation) return;
+    setResendingId(p.id);
+    try {
+      await onResendConfirmation(p);
+      setResendSuccessId(p.id);
+      setTimeout(() => setResendSuccessId(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to resend confirmation email');
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const isAllVisibleSelected =
     participants.length > 0 && participants.every((p) => selectedIds.includes(p.id));
@@ -334,6 +352,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                 <th className="py-3.5 px-3 font-extrabold">SOURCE</th>
                 <th className="py-3.5 px-3 font-extrabold">CAMPAIGN</th>
                 <th className="py-3.5 px-3 font-extrabold">STATUS</th>
+                <th className="py-3.5 px-3 font-extrabold">EMAIL STATUS</th>
                 <th className="py-3.5 pr-4 pl-2 text-right font-extrabold">ACTIONS</th>
               </tr>
             </thead>
@@ -341,7 +360,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-slate-400">
+                  <td colSpan={14} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
                       <span>Loading participants from database...</span>
@@ -350,7 +369,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                 </tr>
               ) : participants.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400">
+                  <td colSpan={14} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-slate-700 text-sm">No participants found</p>
                     <p className="text-xs text-slate-400 mt-1">
                       {hasActiveFilters
@@ -532,9 +551,64 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                         </div>
                       </td>
 
+                      {/* Email Status */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {p.email_status === 'sent' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Delivered</span>
+                          </span>
+                        ) : p.email_status === 'failed' ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 cursor-pointer"
+                            title={p.email_error ? `Error: ${p.email_error}` : 'Delivery failed. Click resend icon to retry.'}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                            <span>Failed {p.email_attempts && p.email_attempts > 1 ? `(${p.email_attempts}x)` : ''}</span>
+                          </span>
+                        ) : p.email_status === 'pending' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span>Queued</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                            <span>Not Sent</span>
+                          </span>
+                        )}
+                      </td>
+
                       {/* Actions */}
                       <td className="py-3 pr-4 pl-2 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Quick Resend Confirmation Email */}
+                          <button
+                            onClick={() => handleResend(p)}
+                            disabled={resendingId === p.id}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              resendSuccessId === p.id
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : p.email_status === 'failed'
+                                ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                            title={
+                              resendSuccessId === p.id
+                                ? 'Confirmation Sent!'
+                                : p.email_status === 'failed'
+                                ? 'Retry Failed Admission Email'
+                                : 'Resend Admission Confirmation Email'
+                            }
+                          >
+                            {resendingId === p.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                            ) : resendSuccessId === p.id ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <RefreshCw className="w-4 h-4" />
+                            )}
+                          </button>
+
                           <button
                             onClick={() => onViewParticipant(p)}
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
@@ -546,7 +620,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                           <button
                             onClick={() => onSendSingleEmail(p)}
                             className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
-                            title="Send Email"
+                            title="Send Custom Email"
                           >
                             <Mail className="w-4 h-4" />
                           </button>

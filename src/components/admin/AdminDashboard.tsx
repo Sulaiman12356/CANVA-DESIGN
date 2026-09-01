@@ -198,6 +198,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsEmailModalOpen(true);
   };
 
+  const handleResendConfirmation = async (p: AdminParticipant) => {
+    const res = await adminApi.resendConfirmation(p.id);
+    if (res?.participant) {
+      setParticipants((prev) =>
+        prev.map((item) => (item.id === p.id ? res.participant : item))
+      );
+      if (activeDrawerParticipant?.id === p.id) {
+        setActiveDrawerParticipant(res.participant);
+      }
+    } else {
+      fetchParticipants();
+    }
+    fetchCoreData();
+  };
+
   const handleSelectTemplateToCompose = (template: EmailTemplate) => {
     setEmailTargetParticipant(null);
     setIsEmailModalOpen(true);
@@ -273,6 +288,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onDeleteParticipant={handleDeleteParticipant}
           onDownloadCSV={handleDownloadCSV}
           onOpenImportModal={() => setIsImportModalOpen(true)}
+          onResendConfirmation={handleResendConfirmation}
         />
       )}
 
@@ -337,6 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onUpdate={handleUpdateParticipant}
         onDelete={handleDeleteParticipant}
         onSendEmail={handleOpenSingleEmail}
+        onResendConfirmation={handleResendConfirmation}
       />
 
       {/* Email Composer Modal (Individual & Bulk) */}

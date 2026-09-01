@@ -14,6 +14,7 @@ import {
   sendEmailToParticipant,
   sendBulkEmails,
   interpolateEmailTemplate,
+  resendConfirmationToParticipant,
 } from './server/email';
 
 dotenv.config();
@@ -52,6 +53,47 @@ app.get('/api/health', (req: Request, res: Response) => {
       process.env.META_ACCESS_TOKEN && (process.env.META_PIXEL_ID || process.env.META_DATASET_ID)
     ),
   });
+});
+
+// 2. Real-time Public Activity Tracking Endpoint
+app.post('/api/track', (req: Request, res: Response) => {
+  try {
+    const {
+      event,
+      url,
+      source,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      session_id,
+    } = req.body;
+
+    if (!event) {
+      return res.status(400).json({ error: 'event parameter is required' });
+    }
+
+    const clientIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || '';
+
+    const recorded = db.addAnalyticsEvent({
+      event,
+      url: url || '/',
+      source: source || utm_source || 'Direct',
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      session_id,
+      ip_address: clientIp,
+      user_agent: userAgent,
+    });
+
+    res.json({ success: true, eventId: recorded.id });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 2. Public Class Settings (to check if registration is OPEN or CLOSED)
@@ -139,6 +181,18 @@ app.post('/api/register', async (req: Request, res: Response) => {
     };
 
     const saved = db.addParticipant(newRecord);
+
+    // Track registration_completed event
+    db.addAnalyticsEvent({
+      event: 'registration_completed',
+      url: req.headers.referer || '/',
+      source: saved.utm_source || 'Direct',
+      utm_source: saved.utm_source,
+      utm_medium: saved.utm_medium,
+      utm_campaign: saved.utm_campaign,
+      ip_address: (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1',
+      user_agent: (req.headers['user-agent'] as string) || '',
+    });
 
     // Audit log
     db.addAuditLog(
@@ -285,11 +339,22 @@ app.post('/api/admin/login', (req: Request, res: Response) => {
   }
 
   const token = generateToken(user);
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  
+  // Persist ongoing admin login details to Firebase Firestore console
+  db.syncAdminUserToFirestore({
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    last_login: new Date().toISOString(),
+    ip: clientIp,
+  });
+
   db.addAuditLog(
     'Admin login',
     `Administrator ${user.name} logged into dashboard`,
     user.email,
-    (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1'
+    clientIp
   );
 
   return res.json({
@@ -321,6 +386,7 @@ app.post('/api/admin/logout', requireAdminAuth, (req: AuthenticatedRequest, res:
 app.get('/api/admin/stats', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const participants = db.getParticipants();
   const total = participants.length;
+  const analyticsSummary = db.getAnalyticsSummary();
 
   const todayStr = new Date().toISOString().split('T')[0];
   const now = new Date();
@@ -398,6 +464,16 @@ app.get('/api/admin/stats', requireAdminAuth, (req: AuthenticatedRequest, res: R
     whatsappJoined: whatsappJoinedCount,
     classAttended: classAttendedCount,
     masterClassInterested: masterclassInterestCount,
+    // Real tracked funnel metrics
+    totalVisitors: analyticsSummary.totalVisitors,
+    registrationStarted: analyticsSummary.registrationStarted,
+    totalRegistered: analyticsSummary.totalRegistered,
+    todayRegistrations: analyticsSummary.todayRegistrations,
+    whatsappClicks: analyticsSummary.whatsappClicks,
+    emailsSent: analyticsSummary.emailsSent,
+    emailsFailed: analyticsSummary.emailsFailed,
+    registrationConversionRate: analyticsSummary.registrationConversionRate,
+    funnel: analyticsSummary.funnel,
     sourceCounts,
     deviceCounts,
     experienceCounts,
@@ -715,10 +791,53 @@ app.post('/api/admin/send-email', requireAdminAuth, async (req: AuthenticatedReq
     return res.status(500).json({
       error: 'Email could not be sent. Please try again.',
       details: result.error,
+      participant: db.getParticipantById(participantId),
     });
   }
 
-  res.json({ success: true, result, message: 'Email sent successfully.' });
+  res.json({
+    success: true,
+    result,
+    message: 'Email sent successfully.',
+    participant: db.getParticipantById(participantId),
+  });
+});
+
+// 1b. Resend Registration Confirmation Email
+app.post('/api/admin/resend-confirmation/:id', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const p = db.getParticipantById(id);
+  if (!p) {
+    return res.status(404).json({ error: 'Participant not found' });
+  }
+
+  try {
+    const result = await resendConfirmationToParticipant(id);
+    const updated = db.getParticipantById(id);
+
+    db.addAuditLog(
+      'Confirmation email resent',
+      `Resent admission confirmation email to ${p.full_name} (${p.email}) - Status: ${result.success ? 'Delivered' : 'Failed'}`,
+      req.admin?.email
+    );
+
+    if (!result.success) {
+      return res.status(500).json({
+        error: 'Failed to send confirmation email',
+        details: result.error,
+        participant: updated,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Confirmation email successfully sent to ${p.email}`,
+      result,
+      participant: updated,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Error executing email resend' });
+  }
 });
 
 // 2. Send Bulk Email

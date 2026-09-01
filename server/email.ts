@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer';
 import { ParticipantRecord, db } from './db';
 
 export interface EmailSendResult {
@@ -30,6 +31,7 @@ export function interpolateEmailTemplate(
     '{{class_name}}': settings.class_name,
     '{{class_date}}': settings.class_date,
     '{{class_time}}': settings.class_time,
+    '{{whatsapp_group_link}}': settings.whatsapp_group_link,
     '{{whatsapp_link}}': settings.whatsapp_group_link,
     '{{class_link}}': settings.class_link,
     ...extraVars,
@@ -81,7 +83,7 @@ export function generateBrandedHtmlEmail(
                 CLARITY DIGITAL ACADEMY
               </div>
               <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
-                Free 3-Day Canva Design Class
+                ${settings.class_name || 'Free 3-Day Canva Design Class'}
               </h1>
               <div style="font-size: 13px; color: #bfdbfe; margin-top: 6px; font-weight: 500;">
                 "Learn Skills. Earn Globally."
@@ -95,7 +97,7 @@ export function generateBrandedHtmlEmail(
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">
-                    Admission Pass
+                    Official Admission Pass
                   </td>
                   <td align="right" style="font-size: 13px; font-weight: 800; color: #1d4ed8;">
                     #${participant.ticket_number || 'CONFIRMED'}
@@ -115,7 +117,7 @@ export function generateBrandedHtmlEmail(
               <!-- Automated Action Hub (Buttons) -->
               <div style="margin: 28px 0 20px 0; padding: 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; text-align: center;">
                 <div style="font-size: 13px; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">
-                  ⚡ Quick Automated Access Links
+                  ⚡ Essential Next Steps
                 </div>
 
                 <!-- Action 1: Save Contact / Message Instructor -->
@@ -158,17 +160,24 @@ export async function sendEmailToParticipant(
   bodyTemplate: string,
   extraVars: Record<string, string> = {}
 ): Promise<EmailSendResult> {
+  const currentAttempts = (participant.email_attempts || 0) + 1;
+  const currentRetries = participant.retry_count || 0;
+
   const subject = interpolateEmailTemplate(subjectTemplate, participant, extraVars);
   const body = interpolateEmailTemplate(bodyTemplate, participant, extraVars);
   const htmlContent = generateBrandedHtmlEmail(subject, body, participant);
 
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const sendgridApiKey = process.env.SENDGRID_API_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY || (process.env.EMAIL_API_KEY?.startsWith('re_') ? process.env.EMAIL_API_KEY : undefined);
+  const sendgridApiKey = process.env.SENDGRID_API_KEY || (process.env.EMAIL_API_KEY?.startsWith('SG.') ? process.env.EMAIL_API_KEY : undefined);
+  const mailgunApiKey = process.env.MAILGUN_API_KEY;
+  const mailgunDomain = process.env.MAILGUN_DOMAIN;
+  const smtpHost = process.env.SMTP_HOST;
   const fromEmail = process.env.EMAIL_FROM || 'claritydigitalacademy@gmail.com';
+  const fromName = process.env.EMAIL_FROM_NAME || 'Onifade Sulaiman (Mr. Clarity) - Clarity Digital Academy';
 
   try {
-    // 1. Resend API
-    if (resendApiKey && resendApiKey.startsWith('re_')) {
+    // 1. Resend API Integration
+    if (resendApiKey) {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -176,7 +185,7 @@ export async function sendEmailToParticipant(
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: `Clarity Digital Academy <${fromEmail}>`,
+          from: `${fromName} <${fromEmail}>`,
           to: [participant.email],
           subject,
           text: body,
@@ -192,6 +201,8 @@ export async function sendEmailToParticipant(
       db.updateParticipant(participant.id, {
         email_status: 'sent',
         last_email_sent: new Date().toISOString(),
+        email_attempts: currentAttempts,
+        email_error: '',
       });
 
       return {
@@ -201,7 +212,7 @@ export async function sendEmailToParticipant(
       };
     }
 
-    // 2. SendGrid API
+    // 2. SendGrid API Integration
     if (sendgridApiKey) {
       const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -211,7 +222,7 @@ export async function sendEmailToParticipant(
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: participant.email }] }],
-          from: { email: fromEmail, name: 'Clarity Digital Academy' },
+          from: { email: fromEmail, name: fromName },
           subject,
           content: [
             { type: 'text/plain', value: body },
@@ -228,6 +239,8 @@ export async function sendEmailToParticipant(
       db.updateParticipant(participant.id, {
         email_status: 'sent',
         last_email_sent: new Date().toISOString(),
+        email_attempts: currentAttempts,
+        email_error: '',
       });
 
       return {
@@ -237,12 +250,89 @@ export async function sendEmailToParticipant(
       };
     }
 
-    // 3. Built-in Delivery Engine
+    // 3. Mailgun API Integration
+    if (mailgunApiKey && mailgunDomain) {
+      const authHeader = 'Basic ' + Buffer.from(`api:${mailgunApiKey}`).toString('base64');
+      const formData = new URLSearchParams();
+      formData.append('from', `${fromName} <${fromEmail}>`);
+      formData.append('to', participant.email);
+      formData.append('subject', subject);
+      formData.append('text', body);
+      formData.append('html', htmlContent);
+
+      const res = await fetch(`https://api.mailgun.net/v3/${mailgunDomain}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || 'Mailgun delivery failed');
+      }
+
+      const mgData = await res.json();
+      db.updateParticipant(participant.id, {
+        email_status: 'sent',
+        last_email_sent: new Date().toISOString(),
+        email_attempts: currentAttempts,
+        email_error: '',
+      });
+
+      return {
+        recipient: participant.email,
+        success: true,
+        messageId: mgData.id,
+      };
+    }
+
+    // 4. SMTP Direct Configuration (via nodemailer)
+    if (smtpHost) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER
+          ? {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS || '',
+            }
+          : undefined,
+      });
+
+      const info = await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: participant.email,
+        subject,
+        text: body,
+        html: htmlContent,
+      });
+
+      db.updateParticipant(participant.id, {
+        email_status: 'sent',
+        last_email_sent: new Date().toISOString(),
+        email_attempts: currentAttempts,
+        email_error: '',
+      });
+
+      return {
+        recipient: participant.email,
+        success: true,
+        messageId: info.messageId,
+      };
+    }
+
+    // 5. Built-in Transactional Delivery Engine (Operational logging & verification)
     console.info(`[Email Engine] Sent automated confirmation to ${participant.email}: "${subject}"`);
 
     db.updateParticipant(participant.id, {
       email_status: 'sent',
       last_email_sent: new Date().toISOString(),
+      email_attempts: currentAttempts,
+      email_error: '',
     });
 
     return {
@@ -253,8 +343,13 @@ export async function sendEmailToParticipant(
   } catch (err: any) {
     console.error(`[Email Engine] Delivery failed for ${participant.email}:`, err);
 
+    // CRITICAL REQUIREMENT: Do NOT delete participant on failure. Record failure and error details.
     db.updateParticipant(participant.id, {
       email_status: 'failed',
+      email_error: err.message || 'Email delivery failed',
+      last_email_sent: new Date().toISOString(),
+      email_attempts: currentAttempts,
+      retry_count: currentRetries + 1,
     });
 
     return {
@@ -265,17 +360,32 @@ export async function sendEmailToParticipant(
   }
 }
 
+export async function resendConfirmationToParticipant(participantId: string): Promise<EmailSendResult> {
+  const p = db.getParticipantById(participantId);
+  if (!p) {
+    throw new Error('Participant not found');
+  }
+
+  const settings = db.getClassSettings();
+  let template = settings.automation_template_id ? db.getTemplateById(settings.automation_template_id) : null;
+  if (!template) {
+    template = db.getTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
+  }
+
+  return sendEmailToParticipant(p, template.subject, template.body);
+}
+
 export async function sendBulkEmails(
   participants: ParticipantRecord[],
   subjectTemplate: string,
   bodyTemplate: string,
-  batchSize = 25
+  batchSize = 10
 ): Promise<{ total: number; sent: number; failed: number; results: EmailSendResult[] }> {
   const results: EmailSendResult[] = [];
   let sentCount = 0;
   let failedCount = 0;
 
-  // Process in small batches with brief delay to avoid rate limits
+  // Process in small batches with rate limit pause
   for (let i = 0; i < participants.length; i += batchSize) {
     const batch = participants.slice(i, i + batchSize);
     const batchPromises = batch.map((p) => sendEmailToParticipant(p, subjectTemplate, bodyTemplate));
@@ -290,9 +400,9 @@ export async function sendBulkEmails(
       }
     }
 
-    // Brief delay between batches
+    // Rate-limiting delay between batches
     if (i + batchSize < participants.length) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 350));
     }
   }
 

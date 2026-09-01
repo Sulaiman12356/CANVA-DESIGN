@@ -251,23 +251,83 @@ END:VCALENDAR`;
         <div className="space-y-6 mb-10">
           <div className="text-center sm:text-left">
             <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight flex items-center justify-center sm:justify-start gap-2">
-              <span>Complete These 2 Mandatory Actions Below</span>
+              <span>Next Mandatory Steps</span>
             </h2>
             <p className="text-sm text-slate-600 mt-1">
-              To ensure you receive live class links, assignments, Canva templates, and certificate verification without missing anything:
+              Join the official group right away and save the instructor contact to ensure you receive live class links, templates, and certificate updates:
             </p>
           </div>
 
-          {/* STEP 1: SAVE MR. CLARITY'S CONTACT & SEND AUTOMATED VERIFICATION MESSAGE */}
+          {/* STEP 1: JOIN THE OFFICIAL WHATSAPP CLASS GROUP (PLACED FIRST AT THE TOP) */}
+          <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-emerald-950/20 relative overflow-hidden border-2 border-emerald-400">
+            {/* Background Pattern */}
+            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-3 max-w-xl">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-400 text-slate-950 font-black text-lg flex items-center justify-center shrink-0 shadow-md">
+                    01
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-200 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-400/40">
+                    Step 1 • Immediate Action (Join Cohort Room)
+                  </span>
+                </div>
+
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
+                  Join the Official WhatsApp Class Group
+                </h3>
+
+                <p className="text-emerald-100 text-sm sm:text-base leading-relaxed">
+                  All live video classes, Canva template links, homework critiques, and daily challenges take place inside the private WhatsApp group. 
+                  Click the prominent button below to enter our private cohort room immediately!
+                </p>
+              </div>
+
+              {/* Action Button & Copy Link */}
+              <div className="w-full md:w-auto shrink-0 flex flex-col gap-3">
+                <a
+                  href={SITE_CONFIG.WHATSAPP_GROUP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackWhatsAppClick('Thank You Page - Admission Pass Button', 'group')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-black text-base rounded-2xl transition-all shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  <Users className="w-6 h-6" />
+                  <span>JOIN OFFICIAL WHATSAPP GROUP</span>
+                  <ArrowRight className="w-5 h-5" />
+                </a>
+
+                <button
+                  onClick={handleCopyGroupLink}
+                  className="inline-flex items-center justify-center gap-2 text-xs font-bold text-emerald-200 hover:text-white transition-colors bg-emerald-950/50 border border-emerald-600/50 py-2 px-3 rounded-xl cursor-pointer"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>WhatsApp Link Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy WhatsApp Invite Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 2: SAVE MR. CLARITY'S CONTACT & SEND AUTOMATED VERIFICATION MESSAGE */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-blue-600/30 shadow-lg shadow-blue-950/5 relative overflow-hidden flex flex-col md:flex-row gap-6 items-start">
             <div className="w-12 h-12 rounded-2xl bg-blue-900 text-white font-black text-lg flex items-center justify-center shrink-0 shadow-md shadow-blue-900/20">
-              01
+              02
             </div>
 
             <div className="flex-grow space-y-4 w-full">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                  Step 1 • Mandatory Contact Save
+                  Step 2 • Save Instructor Contact
                 </span>
                 <UserCheck className="w-4 h-4 text-blue-600" />
               </div>
@@ -334,66 +394,6 @@ END:VCALENDAR`;
                     <span>Send Verification Message on WhatsApp</span>
                   </a>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* STEP 2: JOIN THE OFFICIAL WHATSAPP CLASS GROUP */}
-          <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-emerald-950/20 relative overflow-hidden border-2 border-emerald-500/50">
-            {/* Background Pattern */}
-            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-              <div className="space-y-3 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 font-black text-lg flex items-center justify-center shrink-0 shadow-md">
-                    02
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-wider text-emerald-300 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-400/30">
-                    Step 2 • Join Cohort Room
-                  </span>
-                </div>
-
-                <h3 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-                  Join the Official WhatsApp Class Group
-                </h3>
-
-                <p className="text-emerald-100 text-sm sm:text-base leading-relaxed">
-                  All live video classes, Canva template links, homework critiques, and Q&A sessions take place inside the private WhatsApp group. 
-                  Click the button below to enter our private cohort room immediately!
-                </p>
-              </div>
-
-              {/* Action Button & Copy Link */}
-              <div className="w-full md:w-auto shrink-0 flex flex-col gap-3">
-                <a
-                  href={SITE_CONFIG.WHATSAPP_GROUP_LINK}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackWhatsAppClick('Thank You Page - Admission Pass Button', 'group')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-black text-base rounded-2xl transition-all shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                >
-                  <Users className="w-6 h-6" />
-                  <span>JOIN OFFICIAL WHATSAPP GROUP</span>
-                  <ArrowRight className="w-5 h-5" />
-                </a>
-
-                <button
-                  onClick={handleCopyGroupLink}
-                  className="inline-flex items-center justify-center gap-2 text-xs font-bold text-emerald-200 hover:text-white transition-colors bg-emerald-950/40 border border-emerald-700/50 py-2 px-3 rounded-xl cursor-pointer"
-                >
-                  {copiedLink ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>WhatsApp Link Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy WhatsApp Invite Link</span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           </div>

@@ -72,6 +72,9 @@ export interface AdminParticipant {
   masterclass_interest: boolean;
   email_status: 'none' | 'pending' | 'sent' | 'failed';
   last_email_sent?: string;
+  email_error?: string;
+  email_attempts?: number;
+  retry_count?: number;
   admin_notes: string;
   ticket_number: string;
   created_at: string;
@@ -84,6 +87,14 @@ export interface AdminUser {
   role: 'super_admin' | 'admin';
 }
 
+export interface FunnelStep {
+  step: number;
+  name: string;
+  count: number;
+  percentage: number;
+  dropoff: number;
+}
+
 export interface CRMStats {
   total: number;
   today: number;
@@ -91,6 +102,15 @@ export interface CRMStats {
   whatsappJoined: number;
   classAttended: number;
   masterClassInterested: number;
+  totalVisitors?: number;
+  registrationStarted?: number;
+  totalRegistered?: number;
+  todayRegistrations?: number;
+  whatsappClicks?: number;
+  emailsSent?: number;
+  emailsFailed?: number;
+  registrationConversionRate?: number;
+  funnel?: FunnelStep[];
   sourceCounts: Record<string, number>;
   deviceCounts: Record<string, number>;
   experienceCounts: Record<string, number>;

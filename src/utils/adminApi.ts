@@ -155,13 +155,24 @@ export const adminApi = {
     participantId: string,
     subject: string,
     body: string
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; participant?: AdminParticipant }> {
     const res = await fetchWithAuth('/api/admin/send-email', {
       method: 'POST',
       body: JSON.stringify({ participantId, subject, body }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Email sending failed');
+    return data;
+  },
+
+  async resendConfirmation(
+    participantId: string
+  ): Promise<{ success: boolean; message: string; participant?: AdminParticipant }> {
+    const res = await fetchWithAuth(`/api/admin/resend-confirmation/${participantId}`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.details || 'Resend confirmation failed');
     return data;
   },
 

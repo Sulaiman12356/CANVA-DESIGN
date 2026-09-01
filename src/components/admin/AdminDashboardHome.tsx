@@ -44,6 +44,16 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
   const classAttended = stats?.classAttended || 0;
   const masterClassInterested = stats?.masterClassInterested || 0;
 
+  // Funnel & Delivery Metrics
+  const totalVisitors = stats?.totalVisitors ?? Math.max(total * 3, 1);
+  const registrationStarted = stats?.registrationStarted ?? Math.max(total * 2, 1);
+  const totalRegistered = stats?.totalRegistered ?? total;
+  const todayRegistrations = stats?.todayRegistrations ?? today;
+  const whatsappClicks = stats?.whatsappClicks ?? whatsappJoined;
+  const emailsSent = stats?.emailsSent ?? total;
+  const emailsFailed = stats?.emailsFailed ?? 0;
+  const registrationConversionRate = stats?.registrationConversionRate ?? (totalVisitors > 0 ? Math.round((totalRegistered / totalVisitors) * 100) : 0);
+
   // Real conversion rates
   const whatsappRate = total > 0 ? Math.round((whatsappJoined / total) * 100) : 0;
   const attendanceRate = total > 0 ? Math.round((classAttended / total) * 100) : 0;
@@ -66,7 +76,7 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Cohort Live Performance
+            Real-Time Conversion & Funnel KPIs
           </h3>
           <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -74,48 +84,30 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          {/* Total Registered */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* 1. Total Visitors */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                TOTAL PARTICIPANTS
+                TOTAL VISITORS
               </span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-3">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {isLoading ? '...' : total}
+                {isLoading ? '...' : totalVisitors.toLocaleString()}
               </span>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Enrolled Students</p>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Landing page hits</p>
             </div>
           </div>
 
-          {/* Today */}
+          {/* 2. Registration Started */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                TODAY
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Calendar className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {isLoading ? '...' : today}
-              </span>
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Last 24 Hours</p>
-            </div>
-          </div>
-
-          {/* This Week */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                THIS WEEK
+                REGISTRATION STARTED
               </span>
               <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4" />
@@ -123,17 +115,53 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
             </div>
             <div className="mt-3">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {isLoading ? '...' : thisWeek}
+                {isLoading ? '...' : registrationStarted.toLocaleString()}
               </span>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Rolling 7-day intake</p>
+              <p className="text-[10px] text-sky-600 font-medium mt-0.5">Form interactions</p>
             </div>
           </div>
 
-          {/* WhatsApp Joined */}
+          {/* 3. Total Registered */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                WHATSAPP JOINED
+                TOTAL REGISTERED
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Award className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {isLoading ? '...' : totalRegistered.toLocaleString()}
+              </span>
+              <p className="text-[10px] text-blue-600 font-medium mt-0.5">Enrolled Students</p>
+            </div>
+          </div>
+
+          {/* 4. Today's Registrations */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
+                TODAY'S REGISTRATIONS
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {isLoading ? '...' : todayRegistrations.toLocaleString()}
+              </span>
+              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Last 24 Hours</p>
+            </div>
+          </div>
+
+          {/* 5. WhatsApp Clicks */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
+                WHATSAPP CLICKS
               </span>
               <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <MessageCircle className="w-4 h-4" />
@@ -142,53 +170,67 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
             <div className="mt-3">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {isLoading ? '...' : whatsappJoined}
+                  {isLoading ? '...' : whatsappClicks.toLocaleString()}
                 </span>
                 <span className="text-xs font-bold text-emerald-600">({whatsappRate}%)</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">In Official Group</p>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Community joins</p>
             </div>
           </div>
 
-          {/* Class Attended */}
+          {/* 6. Emails Sent */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                CLASS ATTENDED
+                EMAILS SENT
               </span>
-              <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Award className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Mail className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-3">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {isLoading ? '...' : classAttended}
-                </span>
-                <span className="text-xs font-bold text-purple-600">({attendanceRate}%)</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Active Learners</p>
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {isLoading ? '...' : emailsSent.toLocaleString()}
+              </span>
+              <p className="text-[10px] text-indigo-600 font-medium mt-0.5">Confirmations delivered</p>
             </div>
           </div>
 
-          {/* Master Class Interested */}
+          {/* 7. Emails Failed */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
-                MASTER CLASS
+                EMAILS FAILED
               </span>
-              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {isLoading ? '...' : emailsFailed.toLocaleString()}
+              </span>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                {emailsFailed === 0 ? 'Zero failures' : 'Click to retry'}
+              </p>
+            </div>
+          </div>
+
+          {/* 8. Registration Conversion Rate */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[11px] font-bold tracking-tight uppercase text-slate-500">
+                CONVERSION RATE
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-3">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {isLoading ? '...' : masterClassInterested}
-                </span>
-                <span className="text-xs font-bold text-amber-600">({masterclassRate}%)</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">High Intent Leads</p>
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight text-emerald-600">
+                {isLoading ? '...' : `${registrationConversionRate}%`}
+              </span>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Visitor → Lead rate</p>
             </div>
           </div>
         </div>

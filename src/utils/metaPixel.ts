@@ -279,6 +279,38 @@ export async function trackMetaEvent(
     capiStatus = 'simulated';
   }
 
+  // 3. Dispatch to CDA Server-Side Activity Tracker (/api/track) for Live Admin Funnel Analytics
+  try {
+    let sessionId = safeGetItem('cda_analytics_session_id');
+    if (!sessionId) {
+      sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      safeSetItem('cda_analytics_session_id', sessionId);
+    }
+
+    let mappedEvent: 'page_view' | 'view_content' | 'registration_started' | 'registration_completed' | 'whatsapp_click' = 'page_view';
+    if (eventName === 'PageView') mappedEvent = 'page_view';
+    else if (eventName === 'ViewContent') mappedEvent = 'view_content';
+    else if (eventName === 'InitiateRegistration') mappedEvent = 'registration_started';
+    else if (eventName === 'CompleteRegistration' || eventName === 'Lead') mappedEvent = 'registration_completed';
+    else if (eventName === 'WhatsAppClick') mappedEvent = 'whatsapp_click';
+
+    fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: mappedEvent,
+        url: typeof window !== 'undefined' ? window.location.href : '/',
+        source: utms.utm_source || 'Direct',
+        utm_source: utms.utm_source,
+        utm_medium: utms.utm_medium,
+        utm_campaign: utms.utm_campaign,
+        session_id: sessionId,
+      }),
+    }).catch(() => {});
+  } catch {
+    // Non-blocking catch
+  }
+
   // 3. Log event internally for live debugging and testing in drawer
   logMetaEvent({
     id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
