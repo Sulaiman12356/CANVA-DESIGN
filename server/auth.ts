@@ -1,9 +1,8 @@
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+import { db } from './db';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_JWT_SECRET || 'clarity-digital-academy-secret-token-key-2026';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ipesolasulaiman@gmail.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ClarityAdmin2026!';
 
 export interface AdminUser {
   email: string;
@@ -57,17 +56,10 @@ export function verifyToken(token: string): AdminUser | null {
 }
 
 export function authenticateAdminCredentials(email: string, password: string): AdminUser | null {
-  const targetEmail = (process.env.ADMIN_EMAIL || ADMIN_EMAIL).trim().toLowerCase();
-  const targetPassword = process.env.ADMIN_PASSWORD || ADMIN_PASSWORD;
-
-  if (email.trim().toLowerCase() === targetEmail && password === targetPassword) {
-    return {
-      email: targetEmail,
-      name: 'Onifade Sulaiman (Mr. Clarity)',
-      role: 'super_admin',
-    };
+  const verification = db.verifyAdminCredentials(email, password);
+  if (verification.success && verification.user) {
+    return verification.user;
   }
-
   return null;
 }
 

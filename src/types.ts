@@ -87,6 +87,51 @@ export interface AdminUser {
   role: 'super_admin' | 'admin';
 }
 
+export interface AdminAccountInfo {
+  email: string;
+  name: string;
+  role: string;
+  lastLogin?: string;
+  updatedAt?: string;
+  recoveryEmail: string;
+  isRecoveryConfigured: boolean;
+}
+
+export interface VisitorSession {
+  id: string;
+  session_id: string;
+  ip_address?: string;
+  user_agent?: string;
+  device?: string;
+  browser?: string;
+  current_page: string;
+  first_seen: string;
+  last_heartbeat: string;
+  active_seconds: number;
+  is_active: boolean;
+  referrer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  status: 'ACTIVE' | 'IDLE' | 'COMPLETED';
+}
+
+export interface LiveVisitorMetrics {
+  activeVisitorsNow: number;
+  visitorsPastHour: number;
+  todaySessionsCount: number;
+  todayRegistrations: number;
+  activeSessions: VisitorSession[];
+  recentEvents: Array<{
+    id: string;
+    event: string;
+    timestamp: string;
+    source?: string;
+    details?: string;
+  }>;
+  serverLagosTime?: string;
+}
+
 export interface FunnelStep {
   step: number;
   name: string;
@@ -116,6 +161,7 @@ export interface CRMStats {
   experienceCounts: Record<string, number>;
   skillCounts: Record<string, number>;
   dayCounts: Record<string, number>;
+  lagosServerTime?: string;
 }
 
 export interface EmailTemplate {

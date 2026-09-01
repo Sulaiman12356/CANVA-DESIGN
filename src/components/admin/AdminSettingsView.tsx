@@ -11,27 +11,55 @@ import {
   ExternalLink,
   Code,
   Zap,
+  Lock,
+  User,
+  KeyRound,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { AdminUser } from '../../types';
 import { getActiveMetaPixelId, isValidPixelId } from '../../utils/metaPixel';
 import { safeSetItem } from '../../utils/storage';
+import { adminApi } from '../../utils/adminApi';
 
 interface AdminSettingsViewProps {
   adminUser: AdminUser | null;
+  onAccountUpdated?: (user: AdminUser) => void;
 }
 
-export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ adminUser }) => {
+export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
+  adminUser,
+  onAccountUpdated,
+}) => {
+  // Meta Pixel state
   const [pixelId, setPixelId] = useState('');
   const [copiedBase, setCopiedBase] = useState(false);
   const [copiedLead, setCopiedLead] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Admin Account Settings State
+  const [name, setName] = useState(adminUser?.name || 'Onifade Sulaiman (Mr. Clarity)');
+  const [email, setEmail] = useState(adminUser?.email || 'ipesolasulaiman@gmail.com');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+
+  const [isUpdatingAccount, setIsUpdatingAccount] = useState(false);
+  const [accountFeedback, setAccountFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     const currentId = getActiveMetaPixelId();
     if (currentId && !currentId.includes('INSERT')) {
       setPixelId(currentId);
     }
-  }, []);
+    if (adminUser) {
+      setName(adminUser.name);
+      setEmail(adminUser.email);
+    }
+  }, [adminUser]);
 
   const handleSavePixelId = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +67,66 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ adminUser 
     safeSetItem('cda_meta_pixel_id', cleanId);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountFeedback(null);
+
+    if (newPassword && newPassword.length < 8) {
+      setAccountFeedback({
+        type: 'error',
+        message: 'New password must be at least 8 characters long.',
+      });
+      return;
+    }
+
+    if (newPassword && newPassword !== confirmPassword) {
+      setAccountFeedback({
+        type: 'error',
+        message: 'New password and confirmation do not match.',
+      });
+      return;
+    }
+
+    if (newPassword && !currentPassword) {
+      setAccountFeedback({
+        type: 'error',
+        message: 'You must provide your current password to set a new password.',
+      });
+      return;
+    }
+
+    setIsUpdatingAccount(true);
+
+    try {
+      const res = await adminApi.updateAccount({
+        name: name.trim(),
+        email: email.trim(),
+        currentPassword: currentPassword || undefined,
+        newPassword: newPassword || undefined,
+      });
+
+      setAccountFeedback({
+        type: 'success',
+        message: res.message || 'Administrator account details updated securely.',
+      });
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      if (onAccountUpdated && res.user) {
+        onAccountUpdated(res.user);
+      }
+    } catch (err: any) {
+      setAccountFeedback({
+        type: 'error',
+        message: err.message || 'Failed to update administrator account.',
+      });
+    } finally {
+      setIsUpdatingAccount(false);
+    }
   };
 
   const activeIdForSnippet = pixelId.trim() || 'YOUR_META_PIXEL_ID';
@@ -92,11 +180,153 @@ fbq('track', 'Lead', {
           <span>Security & Integration Credentials</span>
         </h2>
         <p className="text-xs text-slate-500 font-medium">
-          System configurations, database integrity, email delivery providers, and Meta Ads CAPI status.
+          Manage administrator account credentials, database integrity, email delivery providers, and Meta Ads tracking.
         </p>
       </div>
 
-      {/* 1. Meta Ads Pixel & Conversions Tracking Hub */}
+      {/* 1. Admin Account & Password Management (Requirement 32) */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-900">
+                Administrator Account & Security Profile
+              </h3>
+              <p className="text-xs text-slate-500">
+                Update authorized administrator Gmail, display name, and confidential password.
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">
+            PBKDF2-SHA512 Encrypted
+          </span>
+        </div>
+
+        {accountFeedback && (
+          <div
+            className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+              accountFeedback.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            {accountFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            )}
+            <span className="font-medium">{accountFeedback.message}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleUpdateAccount} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-blue-600" />
+                Administrator Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-blue-600" />
+                Authorized Admin Gmail Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                This exact email is required for the "Forgot Password" recovery flow.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                Change Password (Leave blank to keep current password)
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPasswords(!showPasswords)}
+                className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 cursor-pointer"
+              >
+                {showPasswords ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                <span>{showPasswords ? 'Hide' : 'Show'} Inputs</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Current Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Required if changing password"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  New Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min 8 characters"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={isUpdatingAccount}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isUpdatingAccount ? 'Updating Account...' : 'Save Account Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 2. Meta Ads Pixel & Conversions Tracking Hub */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -228,31 +458,6 @@ fbq('track', 'Lead', {
         </div>
       </div>
 
-      {/* 2. Admin Authentication & Role */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-blue-600" />
-          <span>Administrator Access Profile</span>
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-slate-400 block text-[11px]">Admin Name</span>
-            <span className="font-bold text-slate-900">{adminUser?.name || 'Onifade Sulaiman (Mr. Clarity)'}</span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-slate-400 block text-[11px]">Admin Email</span>
-            <span className="font-bold text-slate-900">{adminUser?.email || 'ipesolasulaiman@gmail.com'}</span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-slate-400 block text-[11px]">Security Level</span>
-            <span className="font-bold text-emerald-700 uppercase">Super Admin (Confidential)</span>
-          </div>
-        </div>
-      </div>
-
       {/* 3. Email Delivery Engine */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
@@ -283,7 +488,7 @@ fbq('track', 'Lead', {
         </div>
 
         <p className="text-xs text-slate-600 leading-relaxed">
-          The server stores participant records, custom email templates, and class schedules in a transactional database with atomic backups.
+          The server stores participant records, custom email templates, and class schedules in a transactional database with atomic backups and Firestore synchronization.
         </p>
       </div>
     </div>

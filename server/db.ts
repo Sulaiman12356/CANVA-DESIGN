@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { syncDocumentToFirestore, deleteDocumentFromFirestore } from './firebaseSync';
 
 export interface ParticipantRecord {
@@ -47,16 +48,51 @@ export interface ParticipantRecord {
 
 export interface AnalyticsEventRecord {
   id: string;
-  event: 'page_view' | 'view_content' | 'registration_started' | 'registration_completed' | 'whatsapp_click';
+  event:
+    | 'page_view'
+    | 'view_content'
+    | 'registration_started'
+    | 'registration_completed'
+    | 'whatsapp_click'
+    | 'cta_click'
+    | 'active_time_update'
+    | 'session_started'
+    | 'session_ended';
   url: string;
   source: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
   session_id?: string;
+  participant_id?: string;
   ip_address?: string;
   user_agent?: string;
+  details?: string;
   timestamp: string;
+}
+
+export interface VisitorSessionRecord {
+  id: string;
+  session_id: string;
+  entered_at: string;
+  last_seen_at: string;
+  active_seconds: number;
+  device: string;
+  browser: string;
+  referrer: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+  current_page: string;
+  ip_address: string;
+  user_agent: string;
+  is_active: boolean;
+  has_registered?: boolean;
+  has_clicked_whatsapp?: boolean;
 }
 
 export interface EmailTemplateRecord {
@@ -91,16 +127,62 @@ export interface ClassSettingsRecord {
   updated_at: string;
 }
 
+export interface AdminAccountRecord {
+  email: string;
+  name: string;
+  role: 'super_admin' | 'admin';
+  password_hash: string;
+  password_salt: string;
+  reset_token?: string;
+  reset_token_expires?: string;
+  last_login?: string;
+  updated_at: string;
+}
+
 export interface DatabaseSchema {
   participants: ParticipantRecord[];
   email_templates: EmailTemplateRecord[];
   audit_logs: AuditLogRecord[];
   class_settings: ClassSettingsRecord;
   analytics_events?: AnalyticsEventRecord[];
+  visitor_sessions?: VisitorSessionRecord[];
+  admin_account?: AdminAccountRecord;
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
+
+// Cryptographic Password Hashing Helpers
+export function hashPasswordWithSalt(password: string, salt?: string): { hash: string; salt: string } {
+  const actualSalt = salt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, actualSalt, 10000, 64, 'sha512').toString('hex');
+  return { hash, salt: actualSalt };
+}
+
+export function verifyPassword(password: string, hash: string, salt: string): boolean {
+  const calculated = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return calculated === hash;
+}
+
+// Timezone formatter helper (Africa/Lagos)
+export function formatToLagosDateTime(isoDateString?: string): string {
+  if (!isoDateString) return '';
+  try {
+    const d = new Date(isoDateString);
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Lagos',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch {
+    return isoDateString;
+  }
+}
 
 const INITIAL_TEMPLATES: EmailTemplateRecord[] = [
   {
@@ -151,7 +233,7 @@ Learn Skills. Earn Globally.`,
 
 We noticed you haven't joined the official WhatsApp group for our upcoming Free 3-Day Canva Design Class yet.
 
-👉 **Join here immediately**: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y
+👉 **Join here immediately**: {{whatsapp_group_link}}
 
 All live video streams, template downloads, and daily challenges will be shared exclusively inside the group.
 
@@ -166,7 +248,7 @@ See you inside!
     id: 'tmpl_starts_tomorrow',
     name: '3. Class Starts Tomorrow',
     category: 'Reminder',
-    subject: '⏰ Ready? The Free 3-Day Canva Class starts TOMORROW at 8:00 PM!',
+    subject: '⏰ Ready? The Free 3-Day Canva Class starts TOMORROW at {{class_time}}!',
     body: `Hello {{first_name}},
 
 Tomorrow is Day 1 of the **Clarity Digital Academy 3-Day Free Canva Design Class**!
@@ -178,11 +260,11 @@ Here is what we are covering tomorrow:
 
 Ensure your smartphone or laptop has the Canva app ready.
 
-Class time: **Tomorrow at 8:00 PM (WAT)**.
-WhatsApp Group: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y
+Class time: **Tomorrow at {{class_time}} (WAT)**.
+WhatsApp Group: {{whatsapp_group_link}}
 
 Excited to see you!
-— Onifade Sulaiman`,
+— Onifade Sulaiman (Mr. Clarity)`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -191,13 +273,13 @@ Excited to see you!
     id: 'tmpl_starts_soon',
     name: '4. Class Starts Soon (1 Hour Notice)',
     category: 'Urgent',
-    subject: '🚨 Starting in 1 Hour: Day {{day}} Canva Live Workshop!',
+    subject: '🚨 Starting in 1 Hour: Canva Live Workshop!',
     body: `Hey {{first_name}},
 
 We are going live in exactly 1 hour for our practical Canva session!
 
 Grab your notepad, open Canva, and join us inside the WhatsApp group for the direct live streaming link:
-👉 https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y
+👉 {{whatsapp_group_link}}
 
 Let's create something extraordinary today!
 
@@ -215,7 +297,7 @@ Let's create something extraordinary today!
 
 Here is the direct access link and resource pack for today's session:
 
-📌 **Live Class Link**: https://meet.google.com/cda-canva-live
+📌 **Live Class Link**: {{class_link}}
 📌 **Canva Template Assets**: https://www.canva.com/templates
 
 Follow along step-by-step. If you have questions, drop them in the chat!
@@ -236,7 +318,7 @@ Huge congratulations on attending and completing the 3-Day Canva Masterclass!
 
 You have taken a massive step toward mastering visual design and creating income-generating creative assets.
 
-Please submit your Day 3 assignment in the group to claim your Certificate of Completion.
+Please submit your assignment in the WhatsApp group to claim your Certificate of Completion.
 
 Warm regards,
 **Onifade Sulaiman (Mr. Clarity)**`,
@@ -248,43 +330,23 @@ Warm regards,
     id: 'tmpl_masterclass_invite',
     name: '7. Master Class Invitation',
     category: 'Promotion',
-    subject: '🚀 Invitation: Join the Clarity Global Design & Monetization Mentorship',
+    subject: '🚀 Ready for Advanced Mastery? Join the 30-Day Canva Pro Mastermind',
     body: `Hello {{first_name}},
 
-Now that you know the foundations of Canva design, are you ready to monetize your skills globally and attract international clients?
+If you loved our Free 3-Day Workshop, you are going to be blown away by our comprehensive **30-Day Canva Pro & Monetization Mastermind**.
 
-We are opening 25 exclusive seats for the **Clarity Advanced Design & Freelancing Mentorship Program**.
+What you will unlock:
+✅ Advanced Brand Identity Systems & Client Pitch Decks
+✅ Motion Graphics, Video Reels & Animated Social Media Ads
+✅ AI Design Mastery using Canva Magic Studio
+✅ Client Acquisition Blueprint: How to get high-paying design clients globally
 
-In this 6-week intensive mentorship, you will learn:
-✅ Advanced Brand Identity & Packaging Design
-✅ Portfolio Building & International Upwork/Fiverr Client Acquisition
-✅ AI-Powered Design Systems & Automation
-✅ 1-on-1 Portfolio Reviews with Mr. Clarity
+Special Cohort Discount Available for the next 48 hours.
 
-Click below to secure your early-bird seat:
-👉 https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y?text=InterestedInMasterclass
+Reply to this email or send a message on WhatsApp if you would like to secure your early-bird seat.
 
-To your global success,
+To your creative success,
 **Mr. Clarity**`,
-    is_default: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl_general_announcement',
-    name: '8. General Announcement',
-    category: 'Broadcast',
-    subject: '📢 Important Update from Clarity Digital Academy',
-    body: `Hello {{first_name}},
-
-We have an important announcement regarding our training schedule and new student resources.
-
-Please check the official WhatsApp group for all details and downloadable files:
-👉 https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y
-
-Thank you for being part of Clarity Digital Academy!
-
-"Learn Skills. Earn Globally."`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -293,8 +355,8 @@ Thank you for being part of Clarity Digital Academy!
 
 const INITIAL_SETTINGS: ClassSettingsRecord = {
   class_name: 'Free 3-Day Canva Design Class',
-  class_date: 'March 20th - 22nd, 2026',
-  class_time: '8:00 PM (WAT)',
+  class_date: 'Friday 5th – Sunday 7th September, 2026',
+  class_time: '8:00 PM – 9:30 PM (WAT)',
   class_link: 'https://meet.google.com/cda-canva-live',
   whatsapp_group_link: 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
   registration_status: 'OPEN',
@@ -305,72 +367,96 @@ const INITIAL_SETTINGS: ClassSettingsRecord = {
 
 class DatabaseManager {
   private data: DatabaseSchema;
-  private isLoaded = false;
 
   constructor() {
-    this.data = {
+    this.data = this.load();
+    this.ensureAdminAccount();
+    this.syncAllToFirestore();
+  }
+
+  private load(): DatabaseSchema {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        return {
+          participants: parsed.participants || [],
+          email_templates: parsed.email_templates || INITIAL_TEMPLATES,
+          audit_logs: parsed.audit_logs || [],
+          class_settings: { ...INITIAL_SETTINGS, ...(parsed.class_settings || {}) },
+          analytics_events: parsed.analytics_events || [],
+          visitor_sessions: parsed.visitor_sessions || [],
+          admin_account: parsed.admin_account,
+        };
+      }
+    } catch (err) {
+      console.warn('Could not read database.json, initializing defaults:', err);
+    }
+
+    return {
       participants: [],
       email_templates: INITIAL_TEMPLATES,
       audit_logs: [],
       class_settings: INITIAL_SETTINGS,
       analytics_events: [],
+      visitor_sessions: [],
     };
-    this.init();
   }
 
-  private init() {
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        this.data = {
-          participants: parsed.participants || [],
-          email_templates: parsed.email_templates?.length ? parsed.email_templates : INITIAL_TEMPLATES,
-          audit_logs: parsed.audit_logs || [],
-          class_settings: { ...INITIAL_SETTINGS, ...(parsed.class_settings || {}) },
-          analytics_events: parsed.analytics_events || [],
-        };
-      } else {
-        this.save();
-      }
-      this.isLoaded = true;
-
-      // Asynchronously sync initial state with Firebase Firestore
-      this.syncAllToFirestore().catch((err) => {
-        console.warn('Initial Firestore background sync note:', err?.message || err);
-      });
-    } catch (err) {
-      console.error('Error loading database file:', err);
-      this.save();
-      this.isLoaded = true;
-    }
-  }
-
-  private save() {
+  private save(): void {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Error persisting database:', err);
+      console.error('Failed to write database.json:', err);
+    }
+  }
+
+  private ensureAdminAccount() {
+    const configuredAdminEmail = (process.env.ADMIN_EMAIL || 'ipesolasulaiman@gmail.com').trim().toLowerCase();
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'ClarityAdmin2026!';
+
+    if (!this.data.admin_account) {
+      const { hash, salt } = hashPasswordWithSalt(defaultPassword);
+      this.data.admin_account = {
+        email: configuredAdminEmail,
+        name: 'Onifade Sulaiman (Mr. Clarity)',
+        role: 'super_admin',
+        password_hash: hash,
+        password_salt: salt,
+        updated_at: new Date().toISOString(),
+      };
+      this.save();
+    } else if (process.env.ADMIN_EMAIL && this.data.admin_account.email !== configuredAdminEmail) {
+      // Sync with environment if explicitly overridden
+      this.data.admin_account.email = configuredAdminEmail;
+      this.save();
     }
   }
 
   // --- FIREBASE FIRESTORE SYNC HELPERS ---
   public async syncAllToFirestore() {
     try {
-      // Sync class settings
       await syncDocumentToFirestore('class_settings', 'current', this.data.class_settings);
-
-      // Sync email templates
       for (const tmpl of this.data.email_templates) {
         await syncDocumentToFirestore('email_templates', tmpl.id, tmpl);
       }
-    } catch (err: any) {
+      if (this.data.admin_account) {
+        const sanitized = {
+          email: this.data.admin_account.email,
+          name: this.data.admin_account.name,
+          role: this.data.admin_account.role,
+          updated_at: this.data.admin_account.updated_at,
+        };
+        await syncDocumentToFirestore('admin_account', 'current', sanitized);
+      }
+    } catch {
       // Graceful background sync
     }
   }
@@ -392,19 +478,152 @@ class DatabaseManager {
     syncDocumentToFirestore('admin_users', docId, adminUser).catch(() => {});
   }
 
+  // --- ADMIN ACCOUNT MANAGEMENT & RECOVERY ---
+
+  public getAdminAccount(): AdminAccountRecord {
+    this.ensureAdminAccount();
+    return this.data.admin_account!;
+  }
+
+  public verifyAdminCredentials(email: string, password: string): { success: boolean; user?: { email: string; name: string; role: 'super_admin' | 'admin' } } {
+    const account = this.getAdminAccount();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (cleanEmail !== account.email.toLowerCase()) {
+      return { success: false };
+    }
+
+    const isValid = verifyPassword(password, account.password_hash, account.password_salt);
+    if (!isValid) {
+      return { success: false };
+    }
+
+    account.last_login = new Date().toISOString();
+    this.save();
+
+    return {
+      success: true,
+      user: {
+        email: account.email,
+        name: account.name,
+        role: account.role,
+      },
+    };
+  }
+
+  public updateAdminProfile(name: string, newEmail?: string): AdminAccountRecord {
+    const account = this.getAdminAccount();
+    account.name = name.trim() || account.name;
+    if (newEmail && newEmail.includes('@')) {
+      account.email = newEmail.trim().toLowerCase();
+    }
+    account.updated_at = new Date().toISOString();
+    this.save();
+    return account;
+  }
+
+  public updateAdminPassword(currentPassword: string, newPassword: string): { success: boolean; message?: string } {
+    const account = this.getAdminAccount();
+    const isValid = verifyPassword(currentPassword, account.password_hash, account.password_salt);
+    if (!isValid) {
+      return { success: false, message: 'Current password does not match our records.' };
+    }
+
+    if (newPassword.length < 8) {
+      return { success: false, message: 'New password must be at least 8 characters long.' };
+    }
+
+    const { hash, salt } = hashPasswordWithSalt(newPassword);
+    account.password_hash = hash;
+    account.password_salt = salt;
+    account.reset_token = undefined;
+    account.reset_token_expires = undefined;
+    account.updated_at = new Date().toISOString();
+    this.save();
+
+    return { success: true };
+  }
+
+  public createPasswordResetToken(email: string): { success: boolean; token?: string; targetEmail?: string } {
+    const account = this.getAdminAccount();
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Security check: Only generate token for the exact authorized Admin Gmail
+    if (cleanEmail !== account.email.toLowerCase()) {
+      return { success: false };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour expiration
+
+    account.reset_token = token;
+    account.reset_token_expires = expires.toISOString();
+    this.save();
+
+    return {
+      success: true,
+      token,
+      targetEmail: account.email,
+    };
+  }
+
+  public verifyPasswordResetToken(token: string): boolean {
+    const account = this.getAdminAccount();
+    if (!account.reset_token || account.reset_token !== token) {
+      return false;
+    }
+
+    if (!account.reset_token_expires) return false;
+    const expiresAt = new Date(account.reset_token_expires).getTime();
+    if (Date.now() > expiresAt) {
+      return false;
+    }
+
+    return true;
+  }
+
+  public resetPasswordWithToken(token: string, newPassword: string): { success: boolean; message?: string } {
+    if (!this.verifyPasswordResetToken(token)) {
+      return { success: false, message: 'Password reset link has expired or is invalid.' };
+    }
+
+    if (newPassword.length < 8) {
+      return { success: false, message: 'Password must be at least 8 characters long.' };
+    }
+
+    const account = this.getAdminAccount();
+    const { hash, salt } = hashPasswordWithSalt(newPassword);
+    account.password_hash = hash;
+    account.password_salt = salt;
+    // Single-use: Invalidate token immediately
+    account.reset_token = undefined;
+    account.reset_token_expires = undefined;
+    account.updated_at = new Date().toISOString();
+    this.save();
+
+    return { success: true };
+  }
+
   // --- PARTICIPANTS ---
 
   public getParticipants(): ParticipantRecord[] {
-    return [...this.data.participants];
+    return this.data.participants;
   }
 
   public getParticipantById(id: string): ParticipantRecord | undefined {
     return this.data.participants.find((p) => p.id === id);
   }
 
-  public findParticipantByEmail(email: string): ParticipantRecord | undefined {
+  public getParticipantByEmail(email: string): ParticipantRecord | undefined {
     const normalized = email.trim().toLowerCase();
     return this.data.participants.find((p) => p.email.trim().toLowerCase() === normalized);
+  }
+
+  public getParticipantByWhatsapp(phone: string): ParticipantRecord | undefined {
+    const digitsOnly = phone.replace(/[^0-9]/g, '');
+    return this.data.participants.find(
+      (p) => p.whatsapp.replace(/[^0-9]/g, '') === digitsOnly
+    );
   }
 
   public addParticipant(participant: ParticipantRecord): ParticipantRecord {
@@ -418,9 +637,8 @@ class DatabaseManager {
     const index = this.data.participants.findIndex((p) => p.id === id);
     if (index === -1) return null;
 
-    const existing = this.data.participants[index];
     const updated: ParticipantRecord = {
-      ...existing,
+      ...this.data.participants[index],
       ...updates,
       updated_at: new Date().toISOString(),
     };
@@ -445,10 +663,10 @@ class DatabaseManager {
   // --- EMAIL TEMPLATES ---
 
   public getEmailTemplates(): EmailTemplateRecord[] {
-    return [...this.data.email_templates];
+    return this.data.email_templates;
   }
 
-  public getTemplateById(id: string): EmailTemplateRecord | undefined {
+  public getEmailTemplateById(id: string): EmailTemplateRecord | undefined {
     return this.data.email_templates.find((t) => t.id === id);
   }
 
@@ -463,7 +681,7 @@ class DatabaseManager {
     const index = this.data.email_templates.findIndex((t) => t.id === id);
     if (index === -1) return null;
 
-    const updated = {
+    const updated: EmailTemplateRecord = {
       ...this.data.email_templates[index],
       ...updates,
       updated_at: new Date().toISOString(),
@@ -471,7 +689,7 @@ class DatabaseManager {
 
     this.data.email_templates[index] = updated;
     this.save();
-    syncDocumentToFirestore('email_templates', id, updated).catch(() => {});
+    syncDocumentToFirestore('id', id, updated).catch(() => {});
     return updated;
   }
 
@@ -488,11 +706,11 @@ class DatabaseManager {
 
   // --- AUDIT LOGS ---
 
-  public getAuditLogs(limit = 100): AuditLogRecord[] {
-    return this.data.audit_logs.slice(0, limit);
+  public getAuditLogs(): AuditLogRecord[] {
+    return this.data.audit_logs;
   }
 
-  public addAuditLog(action: string, details: string, admin_email = 'ipesolasulaiman@gmail.com', ip_address = '127.0.0.1') {
+  public addAuditLog(action: string, details: string, admin_email: string, ip_address = '127.0.0.1'): AuditLogRecord {
     const log: AuditLogRecord = {
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       action,
@@ -502,7 +720,6 @@ class DatabaseManager {
       timestamp: new Date().toISOString(),
     };
     this.data.audit_logs.unshift(log);
-    // keep maximum 500 audit logs
     if (this.data.audit_logs.length > 500) {
       this.data.audit_logs = this.data.audit_logs.slice(0, 500);
     }
@@ -511,18 +728,97 @@ class DatabaseManager {
     return log;
   }
 
+  // --- VISITOR SESSIONS & HEARTBEATS ---
+
+  public recordVisitorHeartbeat(data: {
+    session_id: string;
+    active_seconds: number;
+    current_page?: string;
+    device?: string;
+    browser?: string;
+    referrer?: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    utm_content?: string;
+    utm_term?: string;
+    ip_address?: string;
+    user_agent?: string;
+  }): VisitorSessionRecord {
+    if (!this.data.visitor_sessions) {
+      this.data.visitor_sessions = [];
+    }
+
+    const now = new Date().toISOString();
+    const existingIndex = this.data.visitor_sessions.findIndex((s) => s.session_id === data.session_id);
+
+    if (existingIndex >= 0) {
+      const existing = this.data.visitor_sessions[existingIndex];
+      const updated: VisitorSessionRecord = {
+        ...existing,
+        last_seen_at: now,
+        active_seconds: Math.max(existing.active_seconds, data.active_seconds || existing.active_seconds + 15),
+        current_page: data.current_page || existing.current_page,
+        is_active: true,
+      };
+      this.data.visitor_sessions[existingIndex] = updated;
+      this.save();
+      return updated;
+    } else {
+      const newSession: VisitorSessionRecord = {
+        id: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        session_id: data.session_id,
+        entered_at: now,
+        last_seen_at: now,
+        active_seconds: data.active_seconds || 15,
+        device: data.device || 'Smartphone',
+        browser: data.browser || 'Mobile Safari',
+        referrer: data.referrer || 'Direct',
+        utm_source: data.utm_source || '',
+        utm_medium: data.utm_medium || '',
+        utm_campaign: data.utm_campaign || '',
+        utm_content: data.utm_content || '',
+        utm_term: data.utm_term || '',
+        current_page: data.current_page || '/',
+        ip_address: data.ip_address || '127.0.0.1',
+        user_agent: data.user_agent || '',
+        is_active: true,
+      };
+
+      this.data.visitor_sessions.unshift(newSession);
+      if (this.data.visitor_sessions.length > 500) {
+        this.data.visitor_sessions = this.data.visitor_sessions.slice(0, 500);
+      }
+      this.save();
+      return newSession;
+    }
+  }
+
   // --- ANALYTICS EVENTS & FUNNEL ---
 
   public addAnalyticsEvent(event: {
-    event: 'page_view' | 'view_content' | 'registration_started' | 'registration_completed' | 'whatsapp_click';
+    event:
+      | 'page_view'
+      | 'view_content'
+      | 'registration_started'
+      | 'registration_completed'
+      | 'whatsapp_click'
+      | 'cta_click'
+      | 'active_time_update'
+      | 'session_started'
+      | 'session_ended';
     url?: string;
     source?: string;
     utm_source?: string;
     utm_medium?: string;
     utm_campaign?: string;
+    utm_content?: string;
+    utm_term?: string;
     session_id?: string;
+    participant_id?: string;
     ip_address?: string;
     user_agent?: string;
+    details?: string;
   }): AnalyticsEventRecord {
     if (!this.data.analytics_events) {
       this.data.analytics_events = [];
@@ -536,9 +832,13 @@ class DatabaseManager {
       utm_source: event.utm_source,
       utm_medium: event.utm_medium,
       utm_campaign: event.utm_campaign,
+      utm_content: event.utm_content,
+      utm_term: event.utm_term,
       session_id: event.session_id,
+      participant_id: event.participant_id,
       ip_address: event.ip_address,
       user_agent: event.user_agent,
+      details: event.details,
       timestamp: new Date().toISOString(),
     };
 
@@ -553,6 +853,109 @@ class DatabaseManager {
 
   public getAnalyticsEvents(): AnalyticsEventRecord[] {
     return this.data.analytics_events || [];
+  }
+
+  public getLiveVisitorMetrics() {
+    const sessions = this.data.visitor_sessions || [];
+    const events = this.data.analytics_events || [];
+    const participants = this.data.participants;
+    const nowTime = Date.now();
+
+    // Mark sessions active if heartbeat received in last 60 seconds
+    const activeCutoffMs = 60 * 1000;
+    const liveSessions = sessions.filter((s) => {
+      const lastSeen = new Date(s.last_seen_at).getTime();
+      return nowTime - lastSeen < activeCutoffMs;
+    });
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sessionsToday = sessions.filter((s) => s.entered_at.startsWith(todayStr));
+    const visitorsTodayCount = Math.max(sessionsToday.length, participants.filter((p) => p.registration_date === todayStr).length);
+
+    const totalActiveSeconds = sessions.reduce((acc, s) => acc + (s.active_seconds || 0), 0);
+    const averageActiveSeconds = sessions.length > 0 ? Math.round(totalActiveSeconds / sessions.length) : 120;
+
+    const formatSeconds = (sec: number) => {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const registrationsToday = participants.filter((p) => p.registration_date === todayStr).length;
+    const whatsappClicksToday = events.filter(
+      (e) => e.event === 'whatsapp_click' && e.timestamp.startsWith(todayStr)
+    ).length;
+
+    const totalVisitors = Math.max(visitorsTodayCount, participants.length, 1);
+    const conversionRate = parseFloat(((registrationsToday / totalVisitors) * 100).toFixed(1));
+
+    // Map top recent / active sessions
+    const liveVisitors = sessions.slice(0, 20).map((s) => {
+      const lastSeenMs = nowTime - new Date(s.last_seen_at).getTime();
+      const isActiveNow = lastSeenMs < activeCutoffMs;
+      const codePart = s.session_id.substring(s.session_id.length - 4).toUpperCase();
+
+      let lastSeenRelative = 'Active now';
+      if (!isActiveNow) {
+        const secAgo = Math.round(lastSeenMs / 1000);
+        if (secAgo < 60) {
+          lastSeenRelative = `Active ${secAgo}s ago`;
+        } else if (secAgo < 3600) {
+          lastSeenRelative = `Active ${Math.round(secAgo / 60)}m ago`;
+        } else {
+          lastSeenRelative = `Seen ${formatToLagosDateTime(s.last_seen_at)}`;
+        }
+      }
+
+      return {
+        id: s.id,
+        sessionId: s.session_id,
+        visitorCode: `Visitor #${codePart || 'LIVE'}`,
+        enteredAt: s.entered_at,
+        lastSeenAt: s.last_seen_at,
+        activeSeconds: s.active_seconds,
+        formattedActiveTime: formatSeconds(s.active_seconds),
+        currentPage: s.current_page || 'Landing Page',
+        device: s.device || 'Mobile',
+        browser: s.browser || 'Browser',
+        referrer: s.referrer || 'Direct',
+        utmSource: s.utm_source || 'Organic',
+        utmCampaign: s.utm_campaign || '',
+        isActive: isActiveNow,
+        lastSeenRelative,
+      };
+    });
+
+    // Recent activity stream (combining last 25 events and registrations)
+    const recentActivity = events.slice(-25).reverse().map((e) => {
+      let label = 'Landing Page Visited';
+      if (e.event === 'registration_completed') label = 'Student Registration Completed';
+      else if (e.event === 'registration_started') label = 'Registration Form Started';
+      else if (e.event === 'whatsapp_click') label = 'WhatsApp Group / Contact Clicked';
+      else if (e.event === 'cta_click') label = 'Call to Action Clicked';
+
+      return {
+        id: e.id,
+        event: e.event,
+        label,
+        timestamp: e.timestamp,
+        formattedTime: formatToLagosDateTime(e.timestamp),
+        source: e.source || e.utm_source || 'Direct',
+        details: e.details || e.url,
+      };
+    });
+
+    return {
+      visitorsToday: visitorsTodayCount,
+      activeVisitors: liveSessions.length,
+      averageActiveSeconds,
+      formattedAvgActiveTime: formatSeconds(averageActiveSeconds),
+      registrationsToday,
+      whatsappClicksToday,
+      conversionRate,
+      liveVisitors,
+      recentActivity,
+    };
   }
 
   public getAnalyticsSummary() {
@@ -588,7 +991,6 @@ class DatabaseManager {
     const registrationConversionRate =
       totalVisitors > 0 ? parseFloat(((totalRegistered / totalVisitors) * 100).toFixed(1)) : 0;
 
-    // Conversion Funnel: Visitors -> Reg Started -> Reg Completed -> WhatsApp Click -> Class Attendance
     const classAttended = participants.filter(
       (p) => p.attendance_day_1 || p.attendance_day_2 || p.attendance_day_3 || p.status.includes('ATTENDED')
     ).length;

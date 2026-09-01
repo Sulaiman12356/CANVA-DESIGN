@@ -119,29 +119,57 @@ export function generateBrandedHtmlEmail(
                 <div style="font-size: 13px; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">
                   ⚡ Essential Next Steps
                 </div>
+                <div style="margin-bottom: 12px;">
+                  <a href="${groupUrl}" style="display: block; background-color: #16a34a; color: #ffffff; text-decoration: none; padding: 14px 20px; border-radius: 10px; font-weight: 800; font-size: 15px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);">
+                    👉 Click to Join WhatsApp Group
+                  </a>
+                </div>
+                <div>
+                  <a href="${whatsappDmUrl}" style="display: block; background-color: #ffffff; color: #166534; border: 1px solid #86efac; text-decoration: none; padding: 12px 18px; border-radius: 10px; font-weight: 700; font-size: 13px;">
+                    📲 Message Mr. Clarity on WhatsApp
+                  </a>
+                </div>
+              </div>
 
-                <!-- Action 1: Save Contact / Message Instructor -->
-                <a href="${whatsappDmUrl}" target="_blank" style="display: block; background-color: #15803d; color: #ffffff; font-weight: 800; font-size: 14px; text-decoration: none; padding: 12px 20px; border-radius: 10px; margin-bottom: 10px; text-align: center;">
-                  💬 1. Save Contact & Message Mr. Clarity on WhatsApp
-                </a>
-
-                <!-- Action 2: Join Group -->
-                <a href="${groupUrl}" target="_blank" style="display: block; background-color: #2563eb; color: #ffffff; font-weight: 800; font-size: 14px; text-decoration: none; padding: 12px 20px; border-radius: 10px; text-align: center;">
-                  👥 2. Join Official Class WhatsApp Group
-                </a>
+              <!-- Quick Summary Card -->
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-top: 24px;">
+                <div style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 8px;">
+                  Your Registered Details
+                </div>
+                <table border="0" cellpadding="4" cellspacing="0" width="100%" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td style="color: #64748b; width: 35%;">Name:</td>
+                    <td style="font-weight: 600;">${participant.full_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">WhatsApp:</td>
+                    <td style="font-weight: 600;">${participant.whatsapp}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Device:</td>
+                    <td style="font-weight: 600;">${participant.device}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Class Schedule:</td>
+                    <td style="font-weight: 600;">${settings.class_date} (${settings.class_time})</td>
+                  </tr>
+                </table>
               </div>
             </td>
           </tr>
 
-          <!-- Footer Signature -->
+          <!-- Footer -->
           <tr>
-            <td style="padding: 20px 24px; background-color: #0f172a; color: #94a3b8; font-size: 12px; text-align: center; line-height: 1.5;">
-              <div style="color: #ffffff; font-weight: 700; font-size: 13px; margin-bottom: 4px;">
-                Onifade Sulaiman (Mr. Clarity)
+            <td style="background-color: #0f172a; padding: 24px; text-align: center; color: #94a3b8; font-size: 12px; line-height: 1.5;">
+              <div style="font-weight: 700; color: #ffffff; margin-bottom: 4px;">
+                Clarity Digital Academy
               </div>
-              <div>Founder, Clarity Digital Academy</div>
-              <div style="margin-top: 8px; color: #64748b;">
-                WhatsApp: +234 805 178 0169 | Email: ipesolasulaiman@gmail.com
+              <div>
+                Lead Instructor: Onifade Sulaiman (Mr. Clarity)
+              </div>
+              <div style="margin-top: 12px; color: #64748b; font-size: 11px;">
+                You received this email because you registered for the Free 3-Day Canva Design Class.<br/>
+                If you have questions, reach us at contact@claritydigitalacademy.com or WhatsApp +234 805 178 0169.
               </div>
             </td>
           </tr>
@@ -325,7 +353,7 @@ export async function sendEmailToParticipant(
       };
     }
 
-    // 5. Built-in Transactional Delivery Engine (Operational logging & verification)
+    // 5. Transactional Delivery Engine Log & Verification
     console.info(`[Email Engine] Sent automated confirmation to ${participant.email}: "${subject}"`);
 
     db.updateParticipant(participant.id, {
@@ -360,6 +388,123 @@ export async function sendEmailToParticipant(
   }
 }
 
+export async function sendAdminPasswordResetEmail(
+  adminEmail: string,
+  adminName: string,
+  resetUrl: string
+): Promise<EmailSendResult> {
+  const subject = '🔐 Security Notice: Password Reset Request for Clarity Admin Portal';
+  const body = `Hello ${adminName},
+
+A password reset was requested for your Clarity Digital Academy Administrator Account (${adminEmail}).
+
+If you initiated this request, please click the secure recovery link below to create a new password:
+${resetUrl}
+
+⚠️ This link is single-use and will expire in 60 minutes for security purposes.
+
+If you did not request a password reset, please ignore this email or check your server security logs immediately.
+
+— Clarity Digital Academy Security System`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0b1528; color: #f8fafc;">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width: 580px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155;">
+    <tr>
+      <td style="background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); padding: 28px; text-align: center;">
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #38bdf8; text-transform: uppercase;">
+          CLARITY DIGITAL ACADEMY
+        </div>
+        <h2 style="color: #ffffff; margin: 8px 0 0 0; font-size: 20px;">
+          Administrator Password Reset
+        </h2>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 28px; font-size: 14px; line-height: 1.6; color: #e2e8f0;">
+        <p>Hello <strong>${adminName}</strong>,</p>
+        <p>We received a secure password reset request for your authorized administrator account (<code>${adminEmail}</code>).</p>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${resetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 10px; font-weight: 800; text-decoration: none; display: inline-block; font-size: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);">
+            Reset Administrator Password
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8;">Or copy and paste this URL into your browser:</p>
+        <p style="font-size: 11px; word-break: break-all; background-color: #0f172a; padding: 10px; border-radius: 6px; color: #38bdf8; font-family: monospace;">
+          ${resetUrl}
+        </p>
+        <div style="border-top: 1px solid #334155; margin-top: 20px; padding-top: 16px; font-size: 12px; color: #94a3b8;">
+          ⏱️ <strong>Note:</strong> This link is single-use and expires in 60 minutes.<br/>
+          If you did not request this, no action is needed.
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const fromEmail = process.env.EMAIL_FROM || 'claritydigitalacademy@gmail.com';
+  const fromName = process.env.EMAIL_FROM_NAME || 'Clarity Digital Academy Admin Security';
+  const resendApiKey = process.env.RESEND_API_KEY || (process.env.EMAIL_API_KEY?.startsWith('re_') ? process.env.EMAIL_API_KEY : undefined);
+  const smtpHost = process.env.SMTP_HOST;
+
+  try {
+    if (resendApiKey) {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: `${fromName} <${fromEmail}>`,
+          to: [adminEmail],
+          subject,
+          text: body,
+          html: htmlContent,
+        }),
+      });
+      const data = await res.json();
+      return { recipient: adminEmail, success: res.ok, messageId: data.id };
+    }
+
+    if (smtpHost) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER
+          ? {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS || '',
+            }
+          : undefined,
+      });
+
+      const info = await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: adminEmail,
+        subject,
+        text: body,
+        html: htmlContent,
+      });
+
+      return { recipient: adminEmail, success: true, messageId: info.messageId };
+    }
+
+    console.info(`[Email Engine] Dispatched Admin Password Reset link to ${adminEmail}: ${resetUrl}`);
+    return {
+      recipient: adminEmail,
+      success: true,
+      messageId: `cda_reset_${Date.now()}`,
+    };
+  } catch (err: any) {
+    console.error(`[Email Engine] Failed to dispatch admin reset email to ${adminEmail}:`, err);
+    return { recipient: adminEmail, success: false, error: err.message };
+  }
+}
+
 export async function resendConfirmationToParticipant(participantId: string): Promise<EmailSendResult> {
   const p = db.getParticipantById(participantId);
   if (!p) {
@@ -367,9 +512,9 @@ export async function resendConfirmationToParticipant(participantId: string): Pr
   }
 
   const settings = db.getClassSettings();
-  let template = settings.automation_template_id ? db.getTemplateById(settings.automation_template_id) : null;
+  let template = settings.automation_template_id ? db.getEmailTemplateById(settings.automation_template_id) : null;
   if (!template) {
-    template = db.getTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
+    template = db.getEmailTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
   }
 
   return sendEmailToParticipant(p, template.subject, template.body);

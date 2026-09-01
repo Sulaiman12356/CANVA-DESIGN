@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { db, ParticipantRecord } from './server/db';
+import { db, ParticipantRecord, formatToLagosDateTime } from './server/db';
 import {
   authenticateAdminCredentials,
   generateToken,
@@ -15,6 +15,7 @@ import {
   sendBulkEmails,
   interpolateEmailTemplate,
   resendConfirmationToParticipant,
+  sendAdminPasswordResetEmail,
 } from './server/email';
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    lagosTime: formatToLagosDateTime(new Date().toISOString()),
     participantsCount: db.getParticipants().length,
     metaConfigured: Boolean(
       process.env.META_ACCESS_TOKEN && (process.env.META_PIXEL_ID || process.env.META_DATASET_ID)
@@ -65,7 +67,11 @@ app.post('/api/track', (req: Request, res: Response) => {
       utm_source,
       utm_medium,
       utm_campaign,
+      utm_content,
+      utm_term,
       session_id,
+      participant_id,
+      details,
     } = req.body;
 
     if (!event) {
@@ -85,9 +91,13 @@ app.post('/api/track', (req: Request, res: Response) => {
       utm_source,
       utm_medium,
       utm_campaign,
+      utm_content,
+      utm_term,
       session_id,
+      participant_id,
       ip_address: clientIp,
       user_agent: userAgent,
+      details,
     });
 
     res.json({ success: true, eventId: recorded.id });
@@ -96,25 +106,77 @@ app.post('/api/track', (req: Request, res: Response) => {
   }
 });
 
-// 2. Public Class Settings (to check if registration is OPEN or CLOSED)
+// 2b. Visitor Session Heartbeat Tracking Endpoint
+app.post('/api/track/heartbeat', (req: Request, res: Response) => {
+  try {
+    const {
+      session_id,
+      active_seconds = 15,
+      current_page = '/',
+      device,
+      browser,
+      referrer,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      utm_term,
+    } = req.body;
+
+    if (!session_id) {
+      return res.status(400).json({ error: 'session_id is required' });
+    }
+
+    const clientIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || '';
+
+    const session = db.recordVisitorHeartbeat({
+      session_id,
+      active_seconds: Number(active_seconds) || 15,
+      current_page,
+      device,
+      browser,
+      referrer,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      utm_term,
+      ip_address: clientIp,
+      user_agent: userAgent,
+    });
+
+    res.json({ success: true, session_id: session.session_id, active_seconds: session.active_seconds });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Public Centralized Class Settings (Single Source of Truth)
 app.get('/api/public/class-settings', (req: Request, res: Response) => {
   const settings = db.getClassSettings();
   res.json({
     className: settings.class_name,
     classDate: settings.class_date,
     classTime: settings.class_time,
+    classLink: settings.class_link,
     whatsappGroupLink: settings.whatsapp_group_link,
     registrationStatus: settings.registration_status,
+    automationEnabled: settings.automation_enabled,
   });
 });
 
-// 3. Public Student Registration Endpoint
+// 4. Public Student Registration Endpoint
 app.post('/api/register', async (req: Request, res: Response) => {
   try {
     const settings = db.getClassSettings();
     if (settings.registration_status === 'CLOSED') {
       return res.status(403).json({
         error: 'Registration is currently closed for this cohort.',
+        registrationStatus: 'CLOSED',
       });
     }
 
@@ -130,6 +192,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
       utmCampaign = 'Canva Free Class',
       utmContent = '',
       utmTerm = '',
+      sessionId = '',
     } = req.body;
 
     if (!fullName || !email || !whatsappNumber) {
@@ -139,11 +202,12 @@ app.post('/api/register', async (req: Request, res: Response) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Check duplicate
-    const existing = db.findParticipantByEmail(normalizedEmail);
+    const existing = db.getParticipantByEmail(normalizedEmail);
     if (existing) {
       return res.status(409).json({
         error: 'This email address is already registered for the Canva class.',
         participant: existing,
+        ticketNumber: existing.ticket_number,
       });
     }
 
@@ -174,15 +238,21 @@ app.post('/api/register', async (req: Request, res: Response) => {
       attendance_day_3: false,
       masterclass_interest: false,
       email_status: 'none',
-      admin_notes: '',
+      admin_notes: settings.automation_enabled ? '' : 'Registration emails are currently disabled in Admin settings',
       ticket_number: ticketNumber,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
     };
 
+    // 1. SAVE PARTICIPANT FIRST (Reliability requirement)
     const saved = db.addParticipant(newRecord);
 
-    // Track registration_completed event
+    const clientIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+
+    // 2. Track registration_completed event
     db.addAnalyticsEvent({
       event: 'registration_completed',
       url: req.headers.referer || '/',
@@ -190,35 +260,44 @@ app.post('/api/register', async (req: Request, res: Response) => {
       utm_source: saved.utm_source,
       utm_medium: saved.utm_medium,
       utm_campaign: saved.utm_campaign,
-      ip_address: (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1',
+      session_id: sessionId,
+      participant_id: saved.id,
+      ip_address: clientIp,
       user_agent: (req.headers['user-agent'] as string) || '',
+      details: `${saved.full_name} (${saved.email}) Ticket #${saved.ticket_number}`,
     });
 
-    // Audit log
+    // 3. Record Audit Log
     db.addAuditLog(
       'Participant registered',
-      `${saved.full_name} (${saved.email}) registered from ${saved.utm_source}`,
+      `${saved.full_name} (${saved.email}) registered from ${saved.utm_source} [Ticket #${saved.ticket_number}]`,
       'system',
-      (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1'
+      clientIp
     );
 
-    // Always Trigger Automated Email immediately on every registration
-    let template = (settings.automation_enabled && settings.automation_template_id)
-      ? db.getTemplateById(settings.automation_template_id)
-      : null;
-    if (!template) {
-      template = db.getTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
-    }
-    if (template) {
-      sendEmailToParticipant(saved, template.subject, template.body).catch((err) =>
-        console.error('Auto-email dispatch error:', err)
-      );
+    // 4. Trigger Automated Email according to Automation Status
+    if (settings.automation_enabled) {
+      let template = settings.automation_template_id
+        ? db.getEmailTemplateById(settings.automation_template_id)
+        : null;
+      if (!template) {
+        template = db.getEmailTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
+      }
+      if (template) {
+        sendEmailToParticipant(saved, template.subject, template.body).catch((err) =>
+          console.error('Auto-email dispatch error:', err)
+        );
+      }
+    } else {
+      console.info(`[Email Engine] Automation disabled. Skipped email for ${saved.email}`);
     }
 
     return res.status(201).json({
       success: true,
       participant: saved,
       ticketNumber: saved.ticket_number,
+      whatsappGroupLink: settings.whatsapp_group_link,
+      automationStatus: settings.automation_enabled ? 'ACTIVE' : 'INACTIVE',
     });
   } catch (err: any) {
     console.error('Registration API Error:', err);
@@ -226,7 +305,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
   }
 });
 
-// 4. Meta Conversions API (CAPI) endpoint
+// 5. Meta Conversions API (CAPI) endpoint
 app.post('/api/meta-conversions', async (req: Request, res: Response) => {
   try {
     const {
@@ -318,7 +397,7 @@ app.post('/api/meta-conversions', async (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// ADMIN AUTHENTICATION ENDPOINTS
+// ADMIN AUTHENTICATION & PASSWORD RESET ENDPOINTS
 // -------------------------------------------------------------
 
 app.post('/api/admin/login', (req: Request, res: Response) => {
@@ -328,20 +407,20 @@ app.post('/api/admin/login', (req: Request, res: Response) => {
   }
 
   const user = authenticateAdminCredentials(email, password);
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+
   if (!user) {
     db.addAuditLog(
       'Failed admin login attempt',
       `Failed attempt for email: ${email}`,
       email,
-      (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1'
+      clientIp
     );
     return res.status(401).json({ error: 'Invalid administrator email or password' });
   }
 
   const token = generateToken(user);
-  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
-  
-  // Persist ongoing admin login details to Firebase Firestore console
+
   db.syncAdminUserToFirestore({
     email: user.email,
     name: user.name,
@@ -364,6 +443,164 @@ app.post('/api/admin/login', (req: Request, res: Response) => {
   });
 });
 
+// 2. Admin Forgot Password Request (Sends time-limited reset link to authorized Admin Gmail)
+app.post('/api/admin/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Admin email is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const result = db.createPasswordResetToken(cleanEmail);
+
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+
+    // If authorized admin email matches, dispatch password reset email
+    if (result.success && result.token && result.targetEmail) {
+      const host = req.get('host') || 'localhost:3000';
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const resetUrl = `${protocol}://${host}/admin/reset-password?token=${result.token}`;
+
+      const adminAccount = db.getAdminAccount();
+      await sendAdminPasswordResetEmail(result.targetEmail, adminAccount.name, resetUrl);
+
+      db.addAuditLog(
+        'Password reset link requested',
+        `Password reset link dispatched to authorized Gmail ${result.targetEmail}`,
+        result.targetEmail,
+        clientIp
+      );
+    } else {
+      db.addAuditLog(
+        'Unauthorized password reset attempt',
+        `Unauthorized password reset request for non-admin email: ${cleanEmail}`,
+        cleanEmail,
+        clientIp
+      );
+    }
+
+    // Always return generic confirmation to protect account confidentiality (Requirement #31)
+    return res.json({
+      success: true,
+      message: 'If this email is the authorized administrator account, a secure password reset link has been dispatched.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Verify Reset Token
+app.post('/api/admin/auth/verify-reset-token', (req: Request, res: Response) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  const isValid = db.verifyPasswordResetToken(token);
+  if (!isValid) {
+    return res.status(400).json({ error: 'Password reset link has expired or is invalid.' });
+  }
+
+  const adminAccount = db.getAdminAccount();
+  return res.json({
+    success: true,
+    adminEmail: adminAccount.email,
+  });
+});
+
+// 4. Complete Password Reset with New Password
+app.post('/api/admin/auth/reset-password', (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required.' });
+  }
+
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const resetResult = db.resetPasswordWithToken(token, newPassword);
+
+  if (!resetResult.success) {
+    return res.status(400).json({ error: resetResult.message || 'Password reset failed.' });
+  }
+
+  const account = db.getAdminAccount();
+  db.addAuditLog(
+    'Password reset completed',
+    `Administrator password was successfully updated via secure recovery link`,
+    account.email,
+    clientIp
+  );
+
+  return res.json({
+    success: true,
+    message: 'Password updated successfully. You can now sign in with your new password.',
+  });
+});
+
+// 5. Admin Account View (Authenticated)
+app.get('/api/admin/account', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
+  const account = db.getAdminAccount();
+  res.json({
+    account: {
+      email: account.email,
+      name: account.name,
+      role: account.role,
+      lastLogin: account.last_login,
+      updatedAt: account.updated_at,
+      recoveryEmail: account.email,
+      isRecoveryConfigured: true,
+    },
+  });
+});
+
+// 6. Admin Account Update (Authenticated)
+app.post('/api/admin/account/update', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { name, email, currentPassword, newPassword } = req.body;
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+
+  // If changing password or email, verify current password first
+  if (newPassword || email) {
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Current password is required to perform account changes.' });
+    }
+    const currentAccount = db.getAdminAccount();
+    const verification = db.verifyAdminCredentials(currentAccount.email, currentPassword);
+    if (!verification.success) {
+      return res.status(403).json({ error: 'Current password does not match.' });
+    }
+  }
+
+  if (newPassword) {
+    const pwResult = db.updateAdminPassword(currentPassword, newPassword);
+    if (!pwResult.success) {
+      return res.status(400).json({ error: pwResult.message });
+    }
+  }
+
+  const updatedAccount = db.updateAdminProfile(name || '', email);
+
+  db.addAuditLog(
+    'Admin account updated',
+    `Admin account updated (Email: ${updatedAccount.email}, Name: ${updatedAccount.name})`,
+    updatedAccount.email,
+    clientIp
+  );
+
+  return res.json({
+    success: true,
+    message: 'Admin account settings updated successfully.',
+    account: {
+      email: updatedAccount.email,
+      name: updatedAccount.name,
+      role: updatedAccount.role,
+      lastLogin: updatedAccount.last_login,
+      updatedAt: updatedAccount.updated_at,
+      recoveryEmail: updatedAccount.email,
+      isRecoveryConfigured: true,
+    },
+  });
+});
+
 app.get('/api/admin/me', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   res.json({ user: req.admin });
 });
@@ -379,10 +616,20 @@ app.post('/api/admin/logout', requireAdminAuth, (req: AuthenticatedRequest, res:
 });
 
 // -------------------------------------------------------------
-// ADMIN CRM & PARTICIPANTS ENDPOINTS
+// ADMIN LIVE ACTIVITY & CRM MONITOR ENDPOINTS
 // -------------------------------------------------------------
 
-// 1. Dynamic Stats & Analytics
+// 1. Live Visitor Activity Monitor
+app.get('/api/admin/live-activity', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
+  const metrics = db.getLiveVisitorMetrics();
+  res.json({
+    success: true,
+    ...metrics,
+    serverLagosTime: formatToLagosDateTime(new Date().toISOString()),
+  });
+});
+
+// 2. Dynamic Stats & Analytics
 app.get('/api/admin/stats', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const participants = db.getParticipants();
   const total = participants.length;
@@ -479,10 +726,11 @@ app.get('/api/admin/stats', requireAdminAuth, (req: AuthenticatedRequest, res: R
     experienceCounts,
     skillCounts,
     dayCounts,
+    lagosServerTime: formatToLagosDateTime(new Date().toISOString()),
   });
 });
 
-// 2. Search, Filter, and Paginated List of Participants
+// 3. Search, Filter, and Paginated List of Participants
 app.get('/api/admin/participants', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   let list = db.getParticipants();
   const {
@@ -553,15 +801,15 @@ app.get('/api/admin/participants', requireAdminAuth, (req: AuthenticatedRequest,
   });
 });
 
-// 3. Single Participant Detail
+// 4. Single Participant Detail
 app.get('/api/admin/participants/:id', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const p = db.getParticipantById(req.params.id);
   if (!p) return res.status(404).json({ error: 'Participant not found' });
-  db.addAuditLog('Participant viewed', `Viewed profile for ${p.full_name} (${p.email})`, req.admin?.email);
+  db.addAuditLog('Participant viewed', `Viewed profile for ${p.full_name} (${p.email})`, req.admin?.email || 'admin');
   res.json({ participant: p });
 });
 
-// 4. Update Participant (Status, Notes, Attendance flags, etc.)
+// 5. Update Participant (Status, Notes, Attendance flags, etc.)
 app.patch('/api/admin/participants/:id', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const existing = db.getParticipantById(id);
@@ -573,16 +821,16 @@ app.patch('/api/admin/participants/:id', requireAdminAuth, (req: AuthenticatedRe
     db.addAuditLog(
       'Status changed',
       `Changed status of ${existing.full_name} from ${existing.status} to ${req.body.status}`,
-      req.admin?.email
+      req.admin?.email || 'admin'
     );
   } else {
-    db.addAuditLog('Participant edited', `Updated profile of ${existing.full_name}`, req.admin?.email);
+    db.addAuditLog('Participant edited', `Updated profile of ${existing.full_name}`, req.admin?.email || 'admin');
   }
 
   res.json({ participant: updated });
 });
 
-// 5. Delete Participant
+// 6. Delete Participant
 app.delete('/api/admin/participants/:id', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const existing = db.getParticipantById(id);
@@ -592,13 +840,13 @@ app.delete('/api/admin/participants/:id', requireAdminAuth, (req: AuthenticatedR
   db.addAuditLog(
     'Participant deleted',
     `Deleted record of ${existing.full_name} (${existing.email})`,
-    req.admin?.email
+    req.admin?.email || 'admin'
   );
 
   res.json({ success: true, message: `Participant ${existing.full_name} deleted successfully` });
 });
 
-// 6. Export CSV (filtered or all)
+// 7. Export CSV
 app.get('/api/admin/participants/export/csv', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   let list = db.getParticipants();
   const { q, status, device, canva_experience, source, learning_interest } = req.query;
@@ -691,14 +939,14 @@ app.get('/api/admin/participants/export/csv', requireAdminAuth, (req: Authentica
   const todayStr = new Date().toISOString().split('T')[0];
   const filename = `clarity-digital-academy-canva-registrations-${todayStr}.csv`;
 
-  db.addAuditLog('CSV downloaded', `Exported ${list.length} participants to CSV`, req.admin?.email);
+  db.addAuditLog('CSV downloaded', `Exported ${list.length} participants to CSV`, req.admin?.email || 'admin');
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(csvContent);
 });
 
-// 7. Import CSV
+// 8. Import CSV
 app.post('/api/admin/participants/import', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const { records } = req.body;
   if (!Array.isArray(records) || records.length === 0) {
@@ -719,7 +967,7 @@ app.post('/api/admin/participants/import', requireAdminAuth, (req: Authenticated
       continue;
     }
 
-    if (db.findParticipantByEmail(email)) {
+    if (db.getParticipantByEmail(email)) {
       skipped++;
       continue;
     }
@@ -759,7 +1007,7 @@ app.post('/api/admin/participants/import', requireAdminAuth, (req: Authenticated
   db.addAuditLog(
     'CSV imported',
     `Imported ${imported} participants, skipped ${skipped} duplicates`,
-    req.admin?.email
+    req.admin?.email || 'admin'
   );
 
   res.json({ success: true, imported, skipped, totalProcessed: records.length });
@@ -784,7 +1032,7 @@ app.post('/api/admin/send-email', requireAdminAuth, async (req: AuthenticatedReq
   db.addAuditLog(
     'Email sent',
     `Sent email "${subject}" to ${p.full_name} (${p.email}) - Result: ${result.success ? 'Success' : 'Failed'}`,
-    req.admin?.email
+    req.admin?.email || 'admin'
   );
 
   if (!result.success) {
@@ -818,7 +1066,7 @@ app.post('/api/admin/resend-confirmation/:id', requireAdminAuth, async (req: Aut
     db.addAuditLog(
       'Confirmation email resent',
       `Resent admission confirmation email to ${p.full_name} (${p.email}) - Status: ${result.success ? 'Delivered' : 'Failed'}`,
-      req.admin?.email
+      req.admin?.email || 'admin'
     );
 
     if (!result.success) {
@@ -863,7 +1111,7 @@ app.post('/api/admin/send-bulk-email', requireAdminAuth, async (req: Authenticat
   db.addAuditLog(
     'Bulk email sent',
     `Bulk email "${subject}" dispatched to ${bulkResult.sent} / ${targets.length} participants`,
-    req.admin?.email
+    req.admin?.email || 'admin'
   );
 
   res.json({
@@ -894,21 +1142,21 @@ app.post('/api/admin/email-templates', requireAdminAuth, (req: AuthenticatedRequ
     updated_at: new Date().toISOString(),
   });
 
-  db.addAuditLog('Template created', `Created email template: ${name}`, req.admin?.email);
+  db.addAuditLog('Template created', `Created email template: ${name}`, req.admin?.email || 'admin');
   res.status(201).json({ template: newTmpl });
 });
 
 app.put('/api/admin/email-templates/:id', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const updated = db.updateEmailTemplate(req.params.id, req.body);
   if (!updated) return res.status(404).json({ error: 'Template not found' });
-  db.addAuditLog('Template updated', `Updated email template: ${updated.name}`, req.admin?.email);
+  db.addAuditLog('Template updated', `Updated email template: ${updated.name}`, req.admin?.email || 'admin');
   res.json({ template: updated });
 });
 
 app.delete('/api/admin/email-templates/:id', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
   const deleted = db.deleteEmailTemplate(req.params.id);
   if (!deleted) return res.status(404).json({ error: 'Template not found' });
-  db.addAuditLog('Template deleted', `Deleted email template ID: ${req.params.id}`, req.admin?.email);
+  db.addAuditLog('Template deleted', `Deleted email template ID: ${req.params.id}`, req.admin?.email || 'admin');
   res.json({ success: true });
 });
 
@@ -924,14 +1172,14 @@ app.put('/api/admin/class-settings', requireAdminAuth, (req: AuthenticatedReques
   const updated = db.updateClassSettings(req.body);
   db.addAuditLog(
     'Class settings updated',
-    `Updated class configuration (Status: ${updated.registration_status})`,
-    req.admin?.email
+    `Updated class configuration (Status: ${updated.registration_status}, Automation: ${updated.automation_enabled ? 'ON' : 'OFF'})`,
+    req.admin?.email || 'admin'
   );
   res.json({ settings: updated });
 });
 
 app.get('/api/admin/audit-logs', requireAdminAuth, (req: AuthenticatedRequest, res: Response) => {
-  const logs = db.getAuditLogs(150);
+  const logs = db.getAuditLogs();
   res.json({ logs });
 });
 

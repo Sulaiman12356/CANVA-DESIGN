@@ -23,19 +23,22 @@ import { RegistrationFormData, AdminUser } from './types';
 import { getCapturedUTMs } from './utils/utm';
 import { initMetaPixel, trackPageView } from './utils/metaPixel';
 import { safeGetItem, safeSetItem } from './utils/storage';
-import { adminApi, getAdminToken, clearAdminToken } from './utils/adminApi';
+import { adminApi, clearAdminToken } from './utils/adminApi';
+import { useSessionHeartbeat } from './utils/useSessionHeartbeat';
 
 export type AppRoute = 'home' | 'thank-you' | 'admin-login' | 'admin-dashboard';
 
 export default function App() {
   const formRef = useRef<HTMLDivElement>(null);
-  const [customPhotoUrl, setCustomPhotoUrl] = useState<string | null>(null);
   const [currentRoute, setCurrentRoute] = useState<AppRoute>('home');
   const [registeredStudent, setRegisteredStudent] = useState<RegistrationFormData | null>(null);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [showCookieNotice, setShowCookieNotice] = useState(false);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+
+  // Activate Real-Time Visitor Heartbeat Telemetry
+  useSessionHeartbeat();
 
   // Initialize Route, UTM capture, and Meta Pixel on mount
   useEffect(() => {
@@ -56,9 +59,10 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const checkPath = () => {
         const path = window.location.pathname.toLowerCase();
+        const search = window.location.search.toLowerCase();
 
-        if (path.includes('/admin') || path.includes('/login')) {
-          // Always present the login screen first irrespective of how many times logged in or device used
+        if (path.includes('/admin') || path.includes('/login') || search.includes('token=')) {
+          // Always present the login / recovery screen first irrespective of how many times logged in or device used
           setCurrentRoute('admin-login');
         } else if (path.includes('/thank-you')) {
           setCurrentRoute('thank-you');

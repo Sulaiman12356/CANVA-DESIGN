@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminLayout, AdminTab } from './AdminLayout';
 import { AdminDashboardHome } from './AdminDashboardHome';
+import { AdminLiveActivityView } from './AdminLiveActivityView';
 import { ParticipantTable } from './ParticipantTable';
 import { ParticipantDetailDrawer } from './ParticipantDetailDrawer';
 import { EmailComposerModal } from './EmailComposerModal';
@@ -167,6 +168,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleOpenSingleEmail = (p: AdminParticipant) => {
+    setEmailTargetParticipant(p);
+    setIsEmailModalOpen(true);
+  };
+
+  const handleOpenBulkEmail = (ids: string[]) => {
+    setSelectedIds(ids);
+    setEmailTargetParticipant(null);
+    setIsEmailModalOpen(true);
+  };
+
+  const handleSelectTemplateToCompose = (tmpl: EmailTemplate) => {
+    setCurrentTab('participants');
+    setIsEmailModalOpen(true);
+  };
+
+  const handleResendConfirmation = async (p: AdminParticipant) => {
+    try {
+      await adminApi.resendConfirmation(p.id);
+      alert(`Admission pass confirmation email resent successfully to ${p.email}`);
+      fetchParticipants();
+      fetchCoreData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to resend confirmation email');
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    const query = new URLSearchParams();
+    if (searchQuery) query.set('q', searchQuery);
+    if (selectedStatus && selectedStatus !== 'All') query.set('status', selectedStatus);
+    if (selectedDevice && selectedDevice !== 'All') query.set('device', selectedDevice);
+    if (selectedExperience && selectedExperience !== 'All')
+      query.set('canva_experience', selectedExperience);
+    if (selectedSource && selectedSource !== 'All') query.set('source', selectedSource);
+    if (selectedInterest && selectedInterest !== 'All')
+      query.set('learning_interest', selectedInterest);
+
+    window.location.href = `/api/admin/participants/export/csv?${query.toString()}`;
+  };
+
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedDevice('All');
@@ -175,47 +217,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSelectedStatus('All');
     setSelectedInterest('All');
     setCurrentPage(1);
-  };
-
-  const handleDownloadCSV = () => {
-    adminApi.downloadCSV({
-      q: searchQuery,
-      device: selectedDevice,
-      canva_experience: selectedExperience,
-      source: selectedSource,
-      status: selectedStatus,
-      learning_interest: selectedInterest,
-    });
-  };
-
-  const handleOpenSingleEmail = (p: AdminParticipant) => {
-    setEmailTargetParticipant(p);
-    setIsEmailModalOpen(true);
-  };
-
-  const handleOpenBulkEmail = () => {
-    setEmailTargetParticipant(null);
-    setIsEmailModalOpen(true);
-  };
-
-  const handleResendConfirmation = async (p: AdminParticipant) => {
-    const res = await adminApi.resendConfirmation(p.id);
-    if (res?.participant) {
-      setParticipants((prev) =>
-        prev.map((item) => (item.id === p.id ? res.participant : item))
-      );
-      if (activeDrawerParticipant?.id === p.id) {
-        setActiveDrawerParticipant(res.participant);
-      }
-    } else {
-      fetchParticipants();
-    }
-    fetchCoreData();
-  };
-
-  const handleSelectTemplateToCompose = (template: EmailTemplate) => {
-    setEmailTargetParticipant(null);
-    setIsEmailModalOpen(true);
   };
 
   return (
@@ -231,7 +232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {currentTab === 'dashboard' && (
         <AdminDashboardHome
           stats={stats}
-          recentParticipants={participants}
+          recentParticipants={participants.slice(0, 8)}
           isLoading={isLoadingParticipants}
           onNavigateTab={handleSelectTab}
           onSelectParticipant={(p) => setActiveDrawerParticipant(p)}
@@ -239,7 +240,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
-      {/* 2. Participants CRM Table */}
+      {/* 1b. Live Visitor & Heartbeat Monitor */}
+      {currentTab === 'live_activity' && <AdminLiveActivityView />}
+
+      {/* 2. Participants Database Table */}
       {currentTab === 'participants' && (
         <ParticipantTable
           participants={participants}
@@ -343,7 +347,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* 8. Settings & API Credentials */}
-      {currentTab === 'settings' && <AdminSettingsView adminUser={adminUser} />}
+      {currentTab === 'settings' && (
+        <AdminSettingsView
+          adminUser={adminUser}
+          onAccountUpdated={(updatedUser) => {
+            setAdminUser(updatedUser);
+            fetchCoreData();
+          }}
+        />
+      )}
 
       {/* Participant Slide-Over Profile Drawer */}
       <ParticipantDetailDrawer

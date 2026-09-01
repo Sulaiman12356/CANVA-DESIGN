@@ -1,10 +1,12 @@
 import {
   AdminParticipant,
   AdminUser,
+  AdminAccountInfo,
   CRMStats,
   EmailTemplate,
   AuditLog,
   ClassSettings,
+  LiveVisitorMetrics,
 } from '../types';
 import {
   safeGetSessionItem,
@@ -69,6 +71,99 @@ export const adminApi = {
     return data;
   },
 
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/admin/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Password reset request failed');
+    }
+    return data;
+  },
+
+  async verifyResetToken(token: string): Promise<{ success: boolean; adminEmail: string }> {
+    const res = await fetch('/api/admin/auth/verify-reset-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Invalid or expired reset token');
+    }
+    return data;
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/admin/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update password');
+    }
+    return data;
+  },
+
+  async getAdminAccount(): Promise<AdminAccountInfo> {
+    const res = await fetchWithAuth('/api/admin/account');
+    if (!res.ok) throw new Error('Failed to fetch admin account');
+    const data = await res.json();
+    return data.account;
+  },
+
+  async updateAccount(payload: {
+    name?: string;
+    email?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<{ success: boolean; message: string; user: AdminUser }> {
+    const res = await fetchWithAuth('/api/admin/account/update', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update admin account');
+    }
+    return {
+      success: true,
+      message: data.message,
+      user: {
+        email: data.account.email,
+        name: data.account.name,
+        role: 'super_admin',
+      },
+    };
+  },
+
+  async updateAdminAccount(payload: {
+    name?: string;
+    email?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<{ success: boolean; message: string; account: AdminAccountInfo }> {
+    const res = await fetchWithAuth('/api/admin/account/update', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update admin account');
+    }
+    return data;
+  },
+
   async getMe(): Promise<AdminUser | null> {
     try {
       const res = await fetchWithAuth('/api/admin/me');
@@ -88,6 +183,12 @@ export const adminApi = {
     } finally {
       clearAdminToken();
     }
+  },
+
+  async getLiveActivity(): Promise<LiveVisitorMetrics> {
+    const res = await fetchWithAuth('/api/admin/live-activity');
+    if (!res.ok) throw new Error('Failed to fetch live activity monitor');
+    return res.json();
   },
 
   async getStats(): Promise<CRMStats> {
@@ -196,6 +297,21 @@ export const adminApi = {
     return data;
   },
 
+  async importCSV(records: any[]): Promise<{
+    success: boolean;
+    importedCount: number;
+    skippedCount: number;
+    total: number;
+  }> {
+    const res = await fetchWithAuth('/api/admin/participants/import/csv', {
+      method: 'POST',
+      body: JSON.stringify({ records }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'CSV import failed');
+    return data;
+  },
+
   async getEmailTemplates(): Promise<EmailTemplate[]> {
     const res = await fetchWithAuth('/api/admin/email-templates');
     if (!res.ok) throw new Error('Failed to fetch email templates');
@@ -252,54 +368,5 @@ export const adminApi = {
     if (!res.ok) throw new Error('Failed to fetch audit logs');
     const data = await res.json();
     return data.logs;
-  },
-
-  async importCSV(records: any[]): Promise<{ success: boolean; imported: number; skipped: number; totalProcessed: number }> {
-    const res = await fetchWithAuth('/api/admin/participants/import', {
-      method: 'POST',
-      body: JSON.stringify({ records }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Import failed');
-    return data;
-  },
-
-  async downloadCSV(filters: {
-    q?: string;
-    status?: string;
-    device?: string;
-    canva_experience?: string;
-    source?: string;
-    learning_interest?: string;
-  } = {}): Promise<void> {
-    const query = new URLSearchParams();
-    if (filters.q) query.set('q', filters.q);
-    if (filters.status && filters.status !== 'All') query.set('status', filters.status);
-    if (filters.device && filters.device !== 'All') query.set('device', filters.device);
-    if (filters.canva_experience && filters.canva_experience !== 'All')
-      query.set('canva_experience', filters.canva_experience);
-    if (filters.source && filters.source !== 'All') query.set('source', filters.source);
-    if (filters.learning_interest && filters.learning_interest !== 'All')
-      query.set('learning_interest', filters.learning_interest);
-
-    const token = getAdminToken();
-    const res = await fetch(`/api/admin/participants/export/csv?${query.toString()}`, {
-      headers: {
-        Authorization: `Bearer ${token || ''}`,
-      },
-    });
-
-    if (!res.ok) throw new Error('Export failed');
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const todayStr = new Date().toISOString().split('T')[0];
-    a.download = `clarity-digital-academy-canva-registrations-${todayStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
   },
 };
