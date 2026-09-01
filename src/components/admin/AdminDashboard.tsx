@@ -232,7 +232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {currentTab === 'dashboard' && (
         <AdminDashboardHome
           stats={stats}
-          recentParticipants={participants.slice(0, 8)}
+          recentParticipants={(participants || []).slice(0, 8)}
           isLoading={isLoadingParticipants}
           onNavigateTab={handleSelectTab}
           onSelectParticipant={(p) => setActiveDrawerParticipant(p)}

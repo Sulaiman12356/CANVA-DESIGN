@@ -20,7 +20,8 @@ interface AuditLogViewProps {
   onRefresh: () => void;
 }
 
-export const AuditLogView: React.FC<AuditLogViewProps> = ({ logs, isLoading, onRefresh }) => {
+export const AuditLogView: React.FC<AuditLogViewProps> = ({ logs = [], isLoading, onRefresh }) => {
+  const safeLogs = logs || [];
   const getActionBadge = (action: string) => {
     if (action.includes('LOGIN')) {
       return { bg: 'bg-blue-100 text-blue-800', icon: Lock };
@@ -72,14 +73,14 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ logs, isLoading, onR
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {logs.length === 0 ? (
+              {safeLogs.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-12 text-center text-slate-400 text-xs">
                     No activity logs recorded yet.
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => {
+                safeLogs.map((log) => {
                   const badge = getActionBadge(log.action);
                   const Icon = badge.icon;
                   const formattedDate = new Date(log.timestamp).toLocaleString();

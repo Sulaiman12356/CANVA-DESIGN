@@ -25,11 +25,12 @@ interface EmailTemplatesViewProps {
 }
 
 export const EmailTemplatesView: React.FC<EmailTemplatesViewProps> = ({
-  templates,
+  templates = [],
   classSettings,
   onSelectTemplateToCompose,
   onRefreshTemplates,
 }) => {
+  const safeTemplates = templates || [];
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -49,8 +50,8 @@ export const EmailTemplatesView: React.FC<EmailTemplatesViewProps> = ({
 
   const filteredTemplates =
     selectedCategory === 'All'
-      ? templates
-      : templates.filter(
+      ? safeTemplates
+      : safeTemplates.filter(
           (t) =>
             t.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
             t.name.toLowerCase().includes(selectedCategory.toLowerCase())
@@ -137,7 +138,7 @@ export const EmailTemplatesView: React.FC<EmailTemplatesViewProps> = ({
           <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <span>Email Templates Library</span>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-extrabold">
-              {templates.length} Ready
+              {safeTemplates.length} Ready
             </span>
           </h2>
           <p className="text-xs text-slate-500 font-medium">

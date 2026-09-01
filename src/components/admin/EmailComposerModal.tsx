@@ -30,16 +30,18 @@ export const EmailComposerModal: React.FC<EmailComposerModalProps> = ({
   isOpen,
   onClose,
   targetParticipant,
-  bulkParticipantIds,
+  bulkParticipantIds = [],
   totalEligibleCount = 0,
-  templates,
+  templates = [],
   classSettings,
   onEmailSentSuccess,
 }) => {
   if (!isOpen) return null;
 
-  const isBulk = !targetParticipant && bulkParticipantIds.length > 0;
-  const recipientCount = isBulk ? bulkParticipantIds.length : targetParticipant ? 1 : 0;
+  const safeBulkParticipantIds = bulkParticipantIds || [];
+  const safeTemplates = templates || [];
+  const isBulk = !targetParticipant && safeBulkParticipantIds.length > 0;
+  const recipientCount = isBulk ? safeBulkParticipantIds.length : targetParticipant ? 1 : 0;
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [subject, setSubject] = useState('');
@@ -55,7 +57,7 @@ export const EmailComposerModal: React.FC<EmailComposerModalProps> = ({
   const handleSelectTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId);
     if (!templateId) return;
-    const t = templates.find((item) => item.id === templateId);
+    const t = safeTemplates.find((item) => item.id === templateId);
     if (t) {
       setSubject(t.subject);
       setBody(t.body);

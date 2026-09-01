@@ -51,7 +51,8 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
     if (isOpen) {
       try {
         const raw = safeGetItem('cda_canva_registrations', '[]');
-        setLeads(JSON.parse(raw || '[]'));
+        const parsed = JSON.parse(raw || '[]');
+        setLeads(Array.isArray(parsed) ? parsed : []);
       } catch {
         setLeads([]);
       }

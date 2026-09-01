@@ -86,7 +86,7 @@ const ALL_STATUSES: ParticipantStatus[] = [
 ];
 
 export const ParticipantTable: React.FC<ParticipantTableProps> = ({
-  participants,
+  participants = [],
   totalCount,
   currentPage,
   totalPages,
@@ -98,7 +98,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
   selectedSource,
   selectedStatus,
   selectedInterest,
-  selectedIds,
+  selectedIds = [],
   onSearchChange,
   onFilterChange,
   onClearFilters,
@@ -117,6 +117,8 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
   onOpenImportModal,
   onResendConfirmation,
 }) => {
+  const safeParticipants = participants || [];
+  const safeSelectedIds = selectedIds || [];
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [statusDropdownId, setStatusDropdownId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -137,7 +139,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
   };
 
   const isAllVisibleSelected =
-    participants.length > 0 && participants.every((p) => selectedIds.includes(p.id));
+    safeParticipants.length > 0 && safeParticipants.every((p) => safeSelectedIds.includes(p.id));
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
@@ -297,18 +299,18 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
         </div>
 
         {/* Bulk Action Sticky Strip (When selections exist) */}
-        {selectedIds.length > 0 && (
+        {safeSelectedIds.length > 0 && (
           <div className="p-3 bg-blue-50/90 rounded-xl border border-blue-200 flex items-center justify-between flex-wrap gap-2 text-xs">
             <div className="flex items-center gap-2 font-bold text-blue-900">
               <CheckCircle2 className="w-4 h-4 text-blue-600" />
-              <span>{selectedIds.length} participants selected</span>
+              <span>{safeSelectedIds.length} participants selected</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={onSendBulkEmail}
                 className="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
               >
-                Send Email ({selectedIds.length})
+                Send Email ({safeSelectedIds.length})
               </button>
               <button
                 onClick={onDeselectAll}
@@ -335,7 +337,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                       if (isAllVisibleSelected) {
                         onDeselectAll();
                       } else {
-                        onSelectAllVisible(participants.map((p) => p.id));
+                        onSelectAllVisible(safeParticipants.map((p) => p.id));
                       }
                     }}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -367,7 +369,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                     </div>
                   </td>
                 </tr>
-              ) : participants.length === 0 ? (
+              ) : safeParticipants.length === 0 ? (
                 <tr>
                   <td colSpan={14} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-slate-700 text-sm">No participants found</p>
@@ -387,8 +389,8 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                   </td>
                 </tr>
               ) : (
-                participants.map((p, idx) => {
-                  const isSelected = selectedIds.includes(p.id);
+                safeParticipants.map((p, idx) => {
+                  const isSelected = safeSelectedIds.includes(p.id);
                   const statusStyle =
                     STATUS_COLORS[p.status] || STATUS_COLORS['REGISTERED'];
                   const recordIndex = (currentPage - 1) * pageSize + idx + 1;

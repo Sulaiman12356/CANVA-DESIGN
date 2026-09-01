@@ -24,10 +24,11 @@ interface WhatsAppManagerViewProps {
 export const WhatsAppManagerView: React.FC<WhatsAppManagerViewProps> = ({
   classSettings,
   stats,
-  participants,
+  participants = [],
   onSettingsUpdated,
   onRefreshData,
 }) => {
+  const safeParticipants = participants || [];
   const [groupLink, setGroupLink] = useState(
     classSettings?.whatsapp_group_link || 'https://chat.whatsapp.com/sample-canva-group'
   );
@@ -63,7 +64,7 @@ export const WhatsAppManagerView: React.FC<WhatsAppManagerViewProps> = ({
   };
 
   const handleBulkMarkJoined = async () => {
-    const unjoined = participants.filter((p) => !p.whatsapp_joined);
+    const unjoined = safeParticipants.filter((p) => !p.whatsapp_joined);
     if (unjoined.length === 0) {
       alert('All currently visible participants are already marked as WhatsApp Joined!');
       return;

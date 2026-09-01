@@ -53,7 +53,8 @@ export const ThankYouPage: React.FC<ThankYouPageProps> = ({
     if (!student) {
       try {
         const raw = safeGetItem('cda_canva_registrations', '[]');
-        const list: RegistrationFormData[] = JSON.parse(raw || '[]');
+        const parsed = JSON.parse(raw || '[]');
+        const list: RegistrationFormData[] = Array.isArray(parsed) ? parsed : [];
         if (list.length > 0) {
           const latest = list[list.length - 1];
           setStudent(latest);

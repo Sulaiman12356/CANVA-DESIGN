@@ -175,7 +175,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // 3. Save locally in client storage with safe limit
       try {
         const rawExisting = safeGetItem('cda_canva_registrations', '[]');
-        const existing: RegistrationFormData[] = JSON.parse(rawExisting || '[]');
+        const parsed = JSON.parse(rawExisting || '[]');
+        const existing: RegistrationFormData[] = Array.isArray(parsed) ? parsed : [];
         existing.push(completeRegistrationPayload);
         const trimmed = existing.slice(-200);
         safeSetItem('cda_canva_registrations', JSON.stringify(trimmed));

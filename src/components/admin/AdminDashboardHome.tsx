@@ -446,7 +446,7 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
             </button>
           </div>
 
-          {recentParticipants.length === 0 ? (
+          {(recentParticipants || []).length === 0 ? (
             <div className="py-8 text-center text-slate-400 text-xs">
               No participants registered yet. Registrations from your landing page will appear here immediately.
             </div>
@@ -464,7 +464,7 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {recentParticipants.slice(0, 5).map((p) => (
+                  {(recentParticipants || []).slice(0, 5).map((p) => (
                     <tr
                       key={p.id}
                       onClick={() => onSelectParticipant(p)}

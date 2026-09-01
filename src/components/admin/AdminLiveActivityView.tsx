@@ -183,7 +183,7 @@ export const AdminLiveActivityView: React.FC = () => {
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-blue-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Live Visitor Sessions ({metrics?.activeSessions.length ?? 0})
+                Live Visitor Sessions ({metrics?.activeSessions?.length ?? 0})
               </h3>
             </div>
             <span className="text-[11px] text-slate-500">
@@ -213,7 +213,7 @@ export const AdminLiveActivityView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {metrics.activeSessions.map((sess) => (
+                  {(metrics?.activeSessions || []).map((sess) => (
                     <tr key={sess.id} className="hover:bg-slate-800/40 transition">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
@@ -280,13 +280,13 @@ export const AdminLiveActivityView: React.FC = () => {
             </span>
           </div>
 
-          {!metrics?.recentEvents || metrics.recentEvents.length === 0 ? (
+          {!metrics?.recentEvents || (metrics?.recentEvents || []).length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               No recent activity events recorded.
             </div>
           ) : (
             <div className="space-y-2.5 max-h-[450px] overflow-y-auto pr-1">
-              {metrics.recentEvents.slice(0, 15).map((evt) => {
+              {(metrics?.recentEvents || []).slice(0, 15).map((evt) => {
                 const isReg = evt.event === 'registration_completed';
                 const isWa = evt.event === 'whatsapp_group_click';
                 const isForm = evt.event === 'registration_form_started';
