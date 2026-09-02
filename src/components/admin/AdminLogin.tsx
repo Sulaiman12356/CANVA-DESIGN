@@ -28,15 +28,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
   const [viewMode, setViewMode] = useState<AuthViewMode>('LOGIN');
 
   // Sign In State
-  const [email, setEmail] = useState('ipesolasulaiman@gmail.com');
-  const [password, setPassword] = useState('ClarityAdmin2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Forgot Password State
-  const [forgotEmail, setForgotEmail] = useState('ipesolasulaiman@gmail.com');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSuccessMessage, setForgotSuccessMessage] = useState<string | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
 
@@ -128,7 +128,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
     } catch (err: any) {
       setErrorMessage(
         err.message ||
-          'Google authentication failed. Please sign in with your authorized admin Gmail: ipesolasulaiman@gmail.com'
+          'Google authentication failed. Please sign in with your authorized administrator Google Account.'
       );
     } finally {
       setIsGoogleLoading(false);
@@ -303,7 +303,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="ipesolasulaiman@gmail.com"
+                      placeholder="admin@example.com"
                       autoComplete="username"
                       required
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-600 font-mono text-xs"
@@ -321,7 +321,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
                       onClick={() => {
                         setErrorMessage(null);
                         setForgotSuccessMessage(null);
-                        setForgotEmail(email || 'ipesolasulaiman@gmail.com');
+                        setForgotEmail(email || '');
                         setViewMode('FORGOT_PASSWORD');
                       }}
                       className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
@@ -380,7 +380,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
               </form>
 
               <div className="pt-2 text-center text-[11px] text-slate-500">
-                Authorized Admin: <span className="text-slate-300 font-mono">ipesolasulaiman@gmail.com</span>
+                Authorized Personnel Only • 256-Bit Encrypted
               </div>
             </>
           )}
@@ -394,7 +394,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
                   Account Recovery
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Enter your Admin Gmail address to receive a secure password reset link.
+                  Enter your Administrator email to receive a secure password reset link.
                 </p>
               </div>
 
@@ -415,14 +415,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
                     {forgotSuccessMessage}
                   </p>
                   <p className="text-[11px] text-slate-400 pt-1">
-                    Please check your Gmail inbox and spam folders. The security link will remain active for 60 minutes.
+                    Please check your inbox and spam folders. The security link will remain active for 60 minutes.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleForgotSubmit} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Authorized Admin Gmail Address
+                      Administrator Email Address
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -432,7 +432,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="ipesolasulaiman@gmail.com"
+                        placeholder="admin@example.com"
                         required
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-600 font-mono text-xs"
                       />
