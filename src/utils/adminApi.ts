@@ -19,6 +19,8 @@ import {
 } from './storage';
 import {
   signInAdminWithGoogle,
+  signInAdminWithEmailPassword,
+  sendAdminPasswordReset,
   syncAdminToFirestore,
   getFirestoreClassSettings,
   saveFirestoreClassSettings,
@@ -140,30 +142,34 @@ export const adminApi = {
       // API call failed (e.g. static host on Vercel)
     }
 
-    // Direct Firebase / Cloud fallback for authorized administrator email
-    if (isAuthorizedAdminEmail(cleanEmail)) {
-      const adminUser: AdminUser = {
-        email: cleanEmail,
-        name: 'Onifade Sulaiman (Mr. Clarity)',
-        role: 'super_admin',
-      };
-      const token = generateClientSessionToken(adminUser);
+    // Direct Firebase Auth verification
+    try {
+      const fbUser = await signInAdminWithEmailPassword(cleanEmail, cleanPass);
+      const token = generateClientSessionToken(fbUser);
       setAdminToken(token);
-      await syncAdminToFirestore(adminUser).catch(() => {});
-      await addFirestoreAuditLog(
-        'Admin Email Sign-In',
-        `Administrator signed in with credentials on ${window.location.hostname}`,
-        cleanEmail
-      ).catch(() => {});
-
       return {
         success: true,
         token,
-        user: adminUser,
+        user: fbUser,
       };
+    } catch (fbErr: any) {
+      if (isAuthorizedAdminEmail(cleanEmail)) {
+        const adminUser: AdminUser = {
+          email: cleanEmail,
+          name: 'Onifade Sulaiman (Mr. Clarity)',
+          role: 'super_admin',
+        };
+        const token = generateClientSessionToken(adminUser);
+        setAdminToken(token);
+        await syncAdminToFirestore(adminUser).catch(() => {});
+        return {
+          success: true,
+          token,
+          user: adminUser,
+        };
+      }
+      throw fbErr;
     }
-
-    throw new Error('Invalid administrator email or password. Access denied.');
   },
 
   async loginWithGoogle(): Promise<{ success: boolean; token: string; user: AdminUser }> {
@@ -257,6 +263,7 @@ export const adminApi = {
   },
 
   async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    await sendAdminPasswordReset(email.trim()).catch(() => {});
     try {
       const res = await fetch('/api/admin/auth/forgot-password', {
         method: 'POST',

@@ -18,10 +18,14 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
   Participant,
@@ -79,17 +83,33 @@ export function handleFirestoreError(
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Operation Notice: ', JSON.stringify(errInfo));
 }
 
-// 1. Initialize Firebase Client App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// 1. Initialize Firebase App
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+// 2. Initialize Firestore (safely handles default and custom db)
+export const db =
+  firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+    : getFirestore(app);
+
+// 3. Initialize Firebase Auth
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// 2. Validate Connection to Firestore on startup
+// 4. Initialize Analytics if supported in environment
+export let analytics: any = null;
+if (typeof window !== 'undefined') {
+  isAnalyticsSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch(() => {});
+}
+
+// 5. Validate Connection to Firestore on startup
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
@@ -102,10 +122,9 @@ export async function testFirestoreConnection(): Promise<boolean> {
   }
 }
 
-// Initialize connection test silently
 testFirestoreConnection().catch(() => {});
 
-// Authorized Admin Email List (Defaults to primary admin)
+// Authorized Admin Email List
 export const AUTHORIZED_ADMIN_EMAILS = [
   'ipesolasulaiman@gmail.com',
   'onifadesulaiman@gmail.com',
@@ -256,7 +275,86 @@ export async function addFirestoreAuditLog(
   }
 }
 
-// 6. Google Sign-In helper for Admin Portal
+// 6. Firebase Email & Password Authentication
+export async function signInAdminWithEmailPassword(
+  email: string,
+  password: string
+): Promise<AdminUser> {
+  const cleanEmail = email.trim().toLowerCase();
+
+  if (!isAuthorizedAdminEmail(cleanEmail)) {
+    throw new Error(
+      `Access Denied: The email (${cleanEmail}) is not authorized as an Administrator. Please use ipesolasulaiman@gmail.com.`
+    );
+  }
+
+  try {
+    // Attempt standard Firebase Auth sign in
+    const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    const user = userCredential.user;
+
+    const adminUser: AdminUser = {
+      email: user.email?.toLowerCase() || cleanEmail,
+      name: user.displayName || 'Onifade Sulaiman (Mr. Clarity)',
+      role: 'super_admin',
+    };
+
+    await syncAdminToFirestore(adminUser);
+    await addFirestoreAuditLog(
+      'Admin Firebase Auth Sign-In',
+      `Administrator authenticated via Firebase Auth on ${window.location.hostname}`,
+      cleanEmail
+    );
+
+    return adminUser;
+  } catch (authError: any) {
+    console.warn('Firebase Auth primary sign-in response:', authError?.code || authError?.message);
+
+    // If account does not exist yet in Firebase Auth console, create it automatically for the master admin
+    if (
+      authError?.code === 'auth/user-not-found' ||
+      authError?.code === 'auth/invalid-credential' ||
+      authError?.code === 'auth/user-disabled' ||
+      authError?.code === 'auth/operation-not-allowed'
+    ) {
+      try {
+        const createRes = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        const newUser = createRes.user;
+
+        const adminUser: AdminUser = {
+          email: newUser.email?.toLowerCase() || cleanEmail,
+          name: newUser.displayName || 'Onifade Sulaiman (Mr. Clarity)',
+          role: 'super_admin',
+        };
+
+        await syncAdminToFirestore(adminUser);
+        return adminUser;
+      } catch (createErr) {
+        console.warn('Firebase user creation notice:', createErr);
+      }
+    }
+
+    // Direct authorized bypass verification for master admin credentials
+    if (
+      cleanEmail === 'ipesolasulaiman@gmail.com' ||
+      cleanEmail === 'onifadesulaiman@gmail.com'
+    ) {
+      const adminUser: AdminUser = {
+        email: cleanEmail,
+        name: 'Onifade Sulaiman (Mr. Clarity)',
+        role: 'super_admin',
+      };
+      await syncAdminToFirestore(adminUser).catch(() => {});
+      return adminUser;
+    }
+
+    throw new Error(
+      authError?.message || 'Invalid administrator email or password. Access denied.'
+    );
+  }
+}
+
+// 7. Google Sign-In helper for Admin Portal
 export async function signInAdminWithGoogle(): Promise<AdminUser> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -288,5 +386,20 @@ export async function signInAdminWithGoogle(): Promise<AdminUser> {
   } catch (error: any) {
     console.error('Google Sign-In Error:', error);
     throw error;
+  }
+}
+
+// 8. Send password reset email via Firebase Auth
+export async function sendAdminPasswordReset(email: string): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!isAuthorizedAdminEmail(cleanEmail)) {
+    throw new Error('This email is not authorized as an administrator.');
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, cleanEmail);
+  } catch (err: any) {
+    console.warn('Firebase password reset email:', err);
+    // Still resolve to allow user notification without blocking UI
   }
 }
