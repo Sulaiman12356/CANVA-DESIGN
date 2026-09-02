@@ -945,7 +945,44 @@ class DatabaseManager {
       };
     });
 
+    // Calculate visitors in the past hour (last 60 mins)
+    const pastHourCutoffMs = 60 * 60 * 1000;
+    const pastHourSessions = sessions.filter((s) => {
+      const lastSeen = new Date(s.last_seen_at).getTime();
+      return nowTime - lastSeen < pastHourCutoffMs;
+    });
+
+    // Formatted active sessions conforming to VisitorSession structure
+    const activeSessionsFormatted = sessions.slice(0, 30).map((s) => {
+      const lastSeenMs = nowTime - new Date(s.last_seen_at).getTime();
+      const isActiveNow = lastSeenMs < activeCutoffMs;
+
+      return {
+        id: s.id,
+        session_id: s.session_id,
+        entered_at: s.entered_at,
+        last_heartbeat: s.last_seen_at,
+        last_seen_at: s.last_seen_at,
+        active_seconds: s.active_seconds || 0,
+        current_page: s.current_page || '/',
+        device: s.device || 'Mobile',
+        browser: s.browser || 'Browser',
+        referrer: s.referrer || 'Direct',
+        utm_source: s.utm_source || '',
+        utm_campaign: s.utm_campaign || '',
+        is_active: isActiveNow,
+        status: isActiveNow ? ('ACTIVE' as const) : ('IDLE' as const),
+      };
+    });
+
     return {
+      activeVisitorsNow: liveSessions.length,
+      visitorsPastHour: Math.max(pastHourSessions.length, liveSessions.length),
+      todaySessionsCount: visitorsTodayCount,
+      todayRegistrations: registrationsToday,
+      activeSessions: activeSessionsFormatted,
+      recentEvents: recentActivity,
+      // Compatibility aliases
       visitorsToday: visitorsTodayCount,
       activeVisitors: liveSessions.length,
       averageActiveSeconds,

@@ -186,9 +186,24 @@ export const adminApi = {
   },
 
   async getLiveActivity(): Promise<LiveVisitorMetrics> {
-    const res = await fetchWithAuth('/api/admin/live-activity');
-    if (!res.ok) throw new Error('Failed to fetch live activity monitor');
-    return res.json();
+    try {
+      const res = await fetchWithAuth('/api/admin/live-activity');
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (err) {
+      // Return safe fallback metrics on network or transient failure
+      return {
+        activeVisitorsNow: 0,
+        visitorsPastHour: 0,
+        todaySessionsCount: 0,
+        todayRegistrations: 0,
+        activeSessions: [],
+        recentEvents: [],
+        serverLagosTime: new Date().toISOString(),
+      };
+    }
   },
 
   async getStats(): Promise<CRMStats> {

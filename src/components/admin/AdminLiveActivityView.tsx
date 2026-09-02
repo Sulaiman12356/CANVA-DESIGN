@@ -21,15 +21,19 @@ export const AdminLiveActivityView: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+  const [connectionStatus, setConnectionStatus] = useState<'online' | 'reconnecting'>('online');
 
   const fetchLiveActivity = async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
       const data = await adminApi.getLiveActivity();
-      setMetrics(data);
+      if (data) {
+        setMetrics(data);
+        setConnectionStatus('online');
+      }
       setLastRefreshedAt(new Date());
-    } catch (err) {
-      console.error('Error fetching live visitor metrics:', err);
+    } catch {
+      setConnectionStatus('reconnecting');
     } finally {
       setIsLoading(false);
       if (isManual) setIsRefreshing(false);
