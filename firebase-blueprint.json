@@ -14,22 +14,20 @@
         "learning_interest": { "type": "string" },
         "status": { "type": "string" },
         "ticket_number": { "type": "string" },
-        "registration_date": { "type": "string" }
+        "registration_date": { "type": "string" },
+        "registration_time": { "type": "string" },
+        "whatsapp_joined": { "type": "boolean" },
+        "attendance_day_1": { "type": "boolean" },
+        "attendance_day_2": { "type": "boolean" },
+        "attendance_day_3": { "type": "boolean" },
+        "masterclass_interest": { "type": "boolean" },
+        "email_status": { "type": "string" },
+        "admin_notes": { "type": "string" },
+        "utm_source": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
       },
       "required": ["id", "full_name", "email", "whatsapp", "ticket_number"]
-    },
-    "AnalyticsEvent": {
-      "title": "AnalyticsEvent",
-      "description": "Tracking event for visitor funnel and interaction analytics",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "event": { "type": "string" },
-        "url": { "type": "string" },
-        "source": { "type": "string" },
-        "timestamp": { "type": "string" }
-      },
-      "required": ["id", "event", "timestamp"]
     },
     "AdminUser": {
       "title": "AdminUser",
@@ -44,6 +42,21 @@
       },
       "required": ["email", "name", "role"]
     },
+    "AdminAccount": {
+      "title": "AdminAccount",
+      "description": "Master administrative authentication and credentials store",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "password_hash": { "type": "string" },
+        "password_salt": { "type": "string" },
+        "last_login": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["email", "name", "role"]
+    },
     "ClassSettings": {
       "title": "ClassSettings",
       "description": "Configuration for dates, times, live classroom links, and WhatsApp group",
@@ -54,9 +67,43 @@
         "class_time": { "type": "string" },
         "class_link": { "type": "string" },
         "whatsapp_group_link": { "type": "string" },
-        "registration_status": { "type": "string" }
+        "registration_status": { "type": "string" },
+        "automation_enabled": { "type": "boolean" },
+        "founder_image_url": { "type": "string" },
+        "countdown_target_date": { "type": "string" },
+        "updated_at": { "type": "string" }
       },
       "required": ["class_name", "class_date", "whatsapp_group_link"]
+    },
+    "EmailTemplate": {
+      "title": "EmailTemplate",
+      "description": "Email templates for automated notifications and campaigns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "is_default": { "type": "boolean" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "name", "subject", "body"]
+    },
+    "AnalyticsEvent": {
+      "title": "AnalyticsEvent",
+      "description": "Tracking event for visitor funnel and interaction analytics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "event": { "type": "string" },
+        "url": { "type": "string" },
+        "source": { "type": "string" },
+        "session_id": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "event", "timestamp"]
     },
     "AuditLog": {
       "title": "AuditLog",
@@ -70,6 +117,36 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/participants/{participantId}": {
+      "schema": "Participant",
+      "description": "Student registration entries"
+    },
+    "/admin_users/{userId}": {
+      "schema": "AdminUser",
+      "description": "Active admin session and authorized user profiles"
+    },
+    "/admin_account/{accountId}": {
+      "schema": "AdminAccount",
+      "description": "Master admin account credentials and profile synchronization"
+    },
+    "/class_settings/{settingId}": {
+      "schema": "ClassSettings",
+      "description": "Global workshop and landing page parameters"
+    },
+    "/email_templates/{templateId}": {
+      "schema": "EmailTemplate",
+      "description": "Email automation templates"
+    },
+    "/analytics_events/{eventId}": {
+      "schema": "AnalyticsEvent",
+      "description": "Visitor interaction telemetry and conversion events"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit trails for administrator actions"
     }
   }
 }

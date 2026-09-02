@@ -81,6 +81,8 @@ export interface AdminParticipant {
   updated_at: string;
 }
 
+export type Participant = AdminParticipant;
+
 export interface AdminUser {
   email: string;
   name: string;
