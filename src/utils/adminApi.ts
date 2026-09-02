@@ -6,28 +6,50 @@ import {
   EmailTemplate,
   AuditLog,
   ClassSettings,
+  PublicClassSettings,
   LiveVisitorMetrics,
 } from '../types';
 import {
   safeGetSessionItem,
   safeSetSessionItem,
   safeRemoveSessionItem,
+  safeGetItem,
+  safeSetItem,
   safeRemoveItem,
 } from './storage';
 
 const TOKEN_KEY = 'cda_admin_auth_token';
 
 export function getAdminToken(): string | null {
-  return safeGetSessionItem(TOKEN_KEY);
+  return safeGetSessionItem(TOKEN_KEY) || safeGetItem(TOKEN_KEY);
 }
 
 export function setAdminToken(token: string) {
   safeSetSessionItem(TOKEN_KEY, token);
+  safeSetItem(TOKEN_KEY, token);
 }
 
 export function clearAdminToken() {
   safeRemoveSessionItem(TOKEN_KEY);
-  safeRemoveItem(TOKEN_KEY); // Also clean any legacy persistent storage
+  safeRemoveItem(TOKEN_KEY);
+}
+
+/**
+ * Safely parses response JSON body without throwing unhandled SyntaxErrors on HTML/text responses
+ */
+async function safeJson<T = any>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text) {
+    return {} as T;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Server returned HTTP ${res.status}: ${text.slice(0, 100)}`);
+    }
+    return {} as T;
+  }
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
@@ -46,9 +68,6 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (response.status === 401) {
     clearAdminToken();
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin/login')) {
-      window.location.href = '/admin/login';
-    }
   }
 
   return response;
@@ -59,26 +78,79 @@ export const adminApi = {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.trim(), password: password.trim() }),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
-      throw new Error(data.error || 'Login failed');
+      throw new Error(data.error || 'Login failed. Please check your administrator credentials.');
     }
 
-    setAdminToken(data.token);
+    if (data.token) {
+      setAdminToken(data.token);
+    }
     return data;
+  },
+
+  getAdminToken,
+  setAdminToken,
+  clearAdminToken,
+
+  async getPublicClassSettings(): Promise<PublicClassSettings> {
+    try {
+      const res = await fetch('/api/public/class-settings');
+      if (!res.ok) throw new Error('Failed to fetch class settings');
+      const raw = await safeJson<any>(res);
+      return {
+        className: raw.className || raw.class_name || 'Free 3-Day Canva Design Class',
+        classDate: raw.classDate || raw.class_date || 'Friday 5th – Sunday 7th September, 2026',
+        classTime: raw.classTime || raw.class_time || '8:00 PM – 9:30 PM (WAT)',
+        classLink: raw.classLink || raw.class_link || 'https://meet.google.com/cda-canva-live',
+        whatsappGroupLink: raw.whatsappGroupLink || raw.whatsapp_group_link || 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
+        registrationStatus: raw.registrationStatus || raw.registration_status || 'OPEN',
+        automationEnabled: raw.automationEnabled ?? raw.automation_enabled ?? true,
+        founderImageUrl: raw.founderImageUrl || raw.founder_image_url || '',
+        countdownTargetDate: raw.countdownTargetDate || raw.countdown_target_date || '2026-09-05T20:00:00',
+      };
+    } catch {
+      return {
+        className: 'Free 3-Day Canva Design Class',
+        classDate: 'Friday 5th – Sunday 7th September, 2026',
+        classTime: '8:00 PM – 9:30 PM (WAT)',
+        classLink: 'https://meet.google.com/cda-canva-live',
+        whatsappGroupLink: 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
+        registrationStatus: 'OPEN',
+        automationEnabled: true,
+        founderImageUrl: '',
+        countdownTargetDate: '2026-09-05T20:00:00',
+      };
+    }
+  },
+
+  async checkAuthSession(): Promise<AdminUser | null> {
+    const token = getAdminToken();
+    if (!token) return null;
+    try {
+      const res = await fetchWithAuth('/api/admin/me');
+      if (!res.ok) {
+        clearAdminToken();
+        return null;
+      }
+      const data = await safeJson(res);
+      return data.user || null;
+    } catch {
+      return null;
+    }
   },
 
   async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
     const res = await fetch('/api/admin/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: email.trim() }),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Password reset request failed');
     }
@@ -92,7 +164,7 @@ export const adminApi = {
       body: JSON.stringify({ token }),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Invalid or expired reset token');
     }
@@ -106,7 +178,7 @@ export const adminApi = {
       body: JSON.stringify({ token, newPassword }),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to update password');
     }
@@ -116,7 +188,7 @@ export const adminApi = {
   async getAdminAccount(): Promise<AdminAccountInfo> {
     const res = await fetchWithAuth('/api/admin/account');
     if (!res.ok) throw new Error('Failed to fetch admin account');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.account;
   },
 
@@ -131,7 +203,7 @@ export const adminApi = {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to update admin account');
     }
@@ -157,7 +229,7 @@ export const adminApi = {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to update admin account');
     }
@@ -168,7 +240,7 @@ export const adminApi = {
     try {
       const res = await fetchWithAuth('/api/admin/me');
       if (!res.ok) return null;
-      const data = await res.json();
+      const data = await safeJson(res);
       return data.user;
     } catch {
       return null;
@@ -209,7 +281,7 @@ export const adminApi = {
   async getStats(): Promise<CRMStats> {
     const res = await fetchWithAuth('/api/admin/stats');
     if (!res.ok) throw new Error('Failed to fetch CRM stats');
-    return res.json();
+    return safeJson<CRMStats>(res);
   },
 
   async getParticipants(params: {
@@ -246,13 +318,13 @@ export const adminApi = {
 
     const res = await fetchWithAuth(`/api/admin/participants?${query.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch participants');
-    return res.json();
+    return safeJson(res);
   },
 
   async getParticipant(id: string): Promise<AdminParticipant> {
     const res = await fetchWithAuth(`/api/admin/participants/${id}`);
     if (!res.ok) throw new Error('Participant not found');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.participant;
   },
 
@@ -262,7 +334,7 @@ export const adminApi = {
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error('Failed to update participant');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.participant;
   },
 
@@ -282,7 +354,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ participantId, subject, body }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'Email sending failed');
     return data;
   },
@@ -293,7 +365,7 @@ export const adminApi = {
     const res = await fetchWithAuth(`/api/admin/resend-confirmation/${participantId}`, {
       method: 'POST',
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || data.details || 'Resend confirmation failed');
     return data;
   },
@@ -307,7 +379,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ participantIds, subject, body, confirmed: true }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'Bulk email sending failed');
     return data;
   },
@@ -322,7 +394,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ records }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'CSV import failed');
     return data;
   },
@@ -330,7 +402,7 @@ export const adminApi = {
   async getEmailTemplates(): Promise<EmailTemplate[]> {
     const res = await fetchWithAuth('/api/admin/email-templates');
     if (!res.ok) throw new Error('Failed to fetch email templates');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.templates;
   },
 
@@ -339,8 +411,8 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(template),
     });
-    if (!res.ok) throw new Error('Failed to create template');
-    const data = await res.json();
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to create template');
     return data.template;
   },
 
@@ -349,8 +421,8 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error('Failed to update template');
-    const data = await res.json();
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to update template');
     return data.template;
   },
 
@@ -364,7 +436,7 @@ export const adminApi = {
   async getClassSettings(): Promise<ClassSettings> {
     const res = await fetchWithAuth('/api/admin/class-settings');
     if (!res.ok) throw new Error('Failed to fetch class settings');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.settings;
   },
 
@@ -373,15 +445,15 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error('Failed to update class settings');
-    const data = await res.json();
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to update class settings');
     return data.settings;
   },
 
   async getAuditLogs(): Promise<AuditLog[]> {
     const res = await fetchWithAuth('/api/admin/audit-logs');
     if (!res.ok) throw new Error('Failed to fetch audit logs');
-    const data = await res.json();
+    const data = await safeJson(res);
     return data.logs;
   },
 };

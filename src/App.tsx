@@ -54,16 +54,35 @@ export default function App() {
       setShowCookieNotice(true);
     }
 
-    // 4. Check current browser path and navigate accordingly
-    // Mandatory requirement: Always request for login before entering the Admin dashboard
+    // 4. Check current browser path and synchronize session accordingly
     if (typeof window !== 'undefined') {
-      const checkPath = () => {
+      const checkPath = async () => {
         const path = window.location.pathname.toLowerCase();
         const search = window.location.search.toLowerCase();
 
-        if (path.includes('/admin') || path.includes('/login') || search.includes('token=')) {
-          // Always present the login / recovery screen first irrespective of how many times logged in or device used
-          setCurrentRoute('admin-login');
+        // Check if there is an existing authenticated admin session
+        const existingToken = adminApi.getAdminToken();
+        let authenticatedUser: AdminUser | null = null;
+        if (existingToken) {
+          try {
+            const authUser = await adminApi.checkAuthSession();
+            if (authUser) {
+              authenticatedUser = authUser;
+              setAdminUser(authUser);
+            }
+          } catch {
+            // Invalid session
+          }
+        }
+
+        if (path.includes('/admin/dashboard') && authenticatedUser) {
+          setCurrentRoute('admin-dashboard');
+        } else if (path.includes('/admin') || path.includes('/login') || search.includes('token=')) {
+          if (authenticatedUser) {
+            setCurrentRoute('admin-dashboard');
+          } else {
+            setCurrentRoute('admin-login');
+          }
         } else if (path.includes('/thank-you')) {
           setCurrentRoute('thank-you');
           trackPageView('/thank-you');
@@ -133,9 +152,6 @@ export default function App() {
   };
 
   const handleViewLandingPage = () => {
-    // Clear session when leaving admin dashboard so returning always requires login
-    clearAdminToken();
-    setAdminUser(null);
     navigateTo('home');
   };
 

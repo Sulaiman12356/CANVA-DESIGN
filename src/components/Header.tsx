@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../config';
 import { trackInitiateRegistration } from '../utils/metaPixel';
 import { Menu, X, ArrowRight, ShieldCheck, Lock } from 'lucide-react';
+import { CountdownBanner } from './CountdownBanner';
 
 interface HeaderProps {
   onRegisterClick: () => void;
@@ -30,15 +31,19 @@ export const Header: React.FC<HeaderProps> = ({ onRegisterClick, onAdminClick })
   ];
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-3'
-          : 'bg-white py-4 sm:py-5 border-b border-slate-100/60'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+      {/* Upper Landing Page Countdown Banner */}
+      <CountdownBanner onRegisterClick={onRegisterClick} />
+
+      <div
+        className={`${
+          isScrolled
+            ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-3'
+            : 'bg-white py-3 sm:py-4 border-b border-slate-100/60 shadow-xs'
+        } transition-all duration-300`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
           {/* Logo & Brand */}
           <a
             href="#hero"
@@ -132,6 +137,7 @@ export const Header: React.FC<HeaderProps> = ({ onRegisterClick, onAdminClick })
           </div>
         </div>
       </div>
+    </div>
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (

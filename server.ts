@@ -166,6 +166,8 @@ app.get('/api/public/class-settings', (req: Request, res: Response) => {
     whatsappGroupLink: settings.whatsapp_group_link,
     registrationStatus: settings.registration_status,
     automationEnabled: settings.automation_enabled,
+    founderImageUrl: settings.founder_image_url || '',
+    countdownTargetDate: settings.countdown_target_date || '',
   });
 });
 

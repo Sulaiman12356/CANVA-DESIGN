@@ -47,10 +47,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Clear any existing session token when arriving at login screen
+  // Check existing valid session or reset token when arriving at login screen
   useEffect(() => {
-    clearAdminToken();
-
     // Check if there is a reset token in the URL query string
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -59,9 +57,25 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onNaviga
         setResetToken(token);
         setViewMode('RESET_PASSWORD');
         verifyToken(token);
+        return;
       }
     }
-  }, []);
+
+    // Check if user already has a valid synchronized admin session token
+    const existingToken = adminApi.getAdminToken();
+    if (existingToken) {
+      setIsLoading(true);
+      adminApi.checkAuthSession().then((user) => {
+        if (user) {
+          onLoginSuccess(user);
+        }
+      }).catch(() => {
+        clearAdminToken();
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [onLoginSuccess]);
 
   const verifyToken = async (token: string) => {
     setVerifyingToken(true);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../config';
-import { safeGetItem, safeSetItem, safeRemoveItem, compressImageFile } from '../utils/storage';
+import { safeGetItem, safeSetItem, safeRemoveItem, compressImageFile, safeJsonParse } from '../utils/storage';
 import { getCapturedUTMs, UTMParams } from '../utils/utm';
 import { RegistrationFormData } from '../types';
 import {
@@ -51,7 +51,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
     if (isOpen) {
       try {
         const raw = safeGetItem('cda_canva_registrations', '[]');
-        const parsed = JSON.parse(raw || '[]');
+        const parsed = safeJsonParse<RegistrationFormData[]>(raw, []);
         setLeads(Array.isArray(parsed) ? parsed : []);
       } catch {
         setLeads([]);

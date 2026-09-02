@@ -68,6 +68,21 @@ export const safeRemoveSessionItem = (key: string): void => {
 };
 
 /**
+ * Robust JSON parser that never throws a SyntaxError on malformed input or undefined values.
+ */
+export const safeJsonParse = <T = any>(value: string | null | undefined, fallback: T): T => {
+  if (!value || typeof value !== 'string') return fallback;
+  try {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return fallback;
+    return JSON.parse(trimmed) as T;
+  } catch (err) {
+    console.debug('[Storage] safeJsonParse encountered invalid JSON, using fallback:', err);
+    return fallback;
+  }
+};
+
+/**
  * Resizes and compresses an uploaded image file on the client before converting to Base64.
  * Keeps payload small (~30KB-80KB) to prevent QuotaExceededError.
  */

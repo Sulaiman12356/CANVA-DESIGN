@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../config';
 import { RegistrationFormData } from '../types';
-import { safeGetItem } from '../utils/storage';
+import { safeGetItem, safeJsonParse } from '../utils/storage';
 import { MentorPortrait } from './MentorPortrait';
 import { trackWhatsAppClick } from '../utils/metaPixel';
 import {
@@ -53,7 +53,7 @@ export const ThankYouPage: React.FC<ThankYouPageProps> = ({
     if (!student) {
       try {
         const raw = safeGetItem('cda_canva_registrations', '[]');
-        const parsed = JSON.parse(raw || '[]');
+        const parsed = safeJsonParse<RegistrationFormData[]>(raw, []);
         const list: RegistrationFormData[] = Array.isArray(parsed) ? parsed : [];
         if (list.length > 0) {
           const latest = list[list.length - 1];

@@ -193,7 +193,21 @@ export interface ClassSettings {
   registration_status: 'OPEN' | 'CLOSED';
   automation_enabled: boolean;
   automation_template_id: string;
+  founder_image_url?: string;
+  countdown_target_date?: string;
   updated_at?: string;
+}
+
+export interface PublicClassSettings {
+  className: string;
+  classDate: string;
+  classTime: string;
+  classLink: string;
+  whatsappGroupLink: string;
+  registrationStatus: 'OPEN' | 'CLOSED';
+  automationEnabled: boolean;
+  founderImageUrl?: string;
+  countdownTargetDate?: string;
 }
 
 export interface LearningItem {

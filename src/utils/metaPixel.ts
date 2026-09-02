@@ -12,7 +12,7 @@
  */
 
 import { SITE_CONFIG } from '../config';
-import { safeGetItem, safeSetItem } from './storage';
+import { safeGetItem, safeSetItem, safeJsonParse } from './storage';
 import { getCapturedUTMs } from './utm';
 import { RegistrationFormData } from '../types';
 
@@ -80,7 +80,7 @@ export function isValidPixelId(pixelId: string): boolean {
 function logMetaEvent(event: MetaTrackedEvent) {
   try {
     const raw = safeGetItem('cda_meta_event_logs', '[]');
-    const logs: MetaTrackedEvent[] = JSON.parse(raw || '[]');
+    const logs: MetaTrackedEvent[] = safeJsonParse(raw, []);
     logs.unshift(event);
     const trimmed = logs.slice(0, 50); // keep last 50 events
     safeSetItem('cda_meta_event_logs', JSON.stringify(trimmed));
@@ -95,7 +95,7 @@ function logMetaEvent(event: MetaTrackedEvent) {
 export function getMetaEventLogs(): MetaTrackedEvent[] {
   try {
     const raw = safeGetItem('cda_meta_event_logs', '[]');
-    return JSON.parse(raw || '[]');
+    return safeJsonParse(raw, []);
   } catch {
     return [];
   }
@@ -111,7 +111,13 @@ export function clearMetaEventLogs(): void {
 function recordFunnelStep(step: keyof FunnelStats) {
   try {
     const raw = safeGetItem('cda_funnel_stats', '{"pageViews":0,"contentViews":0,"initiatedRegistrations":0,"completedRegistrations":0,"whatsAppClicks":0}');
-    const stats: FunnelStats = JSON.parse(raw || '{}');
+    const stats: FunnelStats = safeJsonParse(raw, {
+      pageViews: 0,
+      contentViews: 0,
+      initiatedRegistrations: 0,
+      completedRegistrations: 0,
+      whatsAppClicks: 0,
+    });
     stats[step] = (stats[step] || 0) + 1;
     safeSetItem('cda_funnel_stats', JSON.stringify(stats));
   } catch (err) {
@@ -122,7 +128,13 @@ function recordFunnelStep(step: keyof FunnelStats) {
 export function getFunnelMetrics(): FunnelStats {
   try {
     const raw = safeGetItem('cda_funnel_stats', '{"pageViews":0,"contentViews":0,"initiatedRegistrations":0,"completedRegistrations":0,"whatsAppClicks":0}');
-    return JSON.parse(raw || '{"pageViews":0,"contentViews":0,"initiatedRegistrations":0,"completedRegistrations":0,"whatsAppClicks":0}');
+    return safeJsonParse(raw, {
+      pageViews: 0,
+      contentViews: 0,
+      initiatedRegistrations: 0,
+      completedRegistrations: 0,
+      whatsAppClicks: 0,
+    });
   } catch {
     return {
       pageViews: 0,

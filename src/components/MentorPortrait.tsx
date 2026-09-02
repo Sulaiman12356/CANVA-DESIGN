@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../config';
 import { safeGetItem } from '../utils/storage';
+import { adminApi } from '../utils/adminApi';
 import { CheckCircle2, Award, Sparkles } from 'lucide-react';
 import defaultMentorPic from '../assets/images/mr_clarity_profile_1788134298716.jpg';
 
@@ -18,8 +19,33 @@ export const MentorPortrait: React.FC<MentorPortraitProps> = ({
   customImage = null,
 }) => {
   const [imgError, setImgError] = useState(false);
+  const [remoteImage, setRemoteImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch latest class settings to see if founder photo was updated by admin
+    adminApi.getPublicClassSettings().then((settings) => {
+      const img = settings?.founderImageUrl || (settings as any)?.founder_image_url;
+      if (img) {
+        setRemoteImage(img);
+        setImgError(false);
+      }
+    }).catch(() => {});
+
+    // Listen for storage updates
+    const handleStorageChange = () => {
+      const localStored = safeGetItem('cda_mentor_photo');
+      if (localStored) {
+        setRemoteImage(localStored);
+        setImgError(false);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const localStored = safeGetItem('cda_mentor_photo');
-  const imageSrc = customImage || localStored || '/sulaiman.jpg' || SITE_CONFIG.MENTOR_IMAGE || defaultMentorPic;
+  const imageSrc = customImage || remoteImage || localStored || '/sulaiman.jpg' || SITE_CONFIG.MENTOR_IMAGE || defaultMentorPic;
 
   // Render sizes
   const sizeClasses = {

@@ -1,3 +1,5 @@
+import { safeJsonParse } from './storage';
+
 export interface UTMParams {
   utm_source?: string;
   utm_medium?: string;
@@ -69,11 +71,21 @@ export function getCapturedUTMs(): UTMParams {
   try {
     const sessionSaved = sessionStorage.getItem(UTM_STORAGE_KEY);
     if (sessionSaved) {
-      return JSON.parse(sessionSaved);
+      return safeJsonParse(sessionSaved, {
+        utm_source: 'direct',
+        utm_medium: 'organic',
+        utm_campaign: 'canva_free_class',
+        capturedAt: new Date().toISOString(),
+      });
     }
     const localSaved = localStorage.getItem(UTM_STORAGE_KEY);
     if (localSaved) {
-      return JSON.parse(localSaved);
+      return safeJsonParse(localSaved, {
+        utm_source: 'direct',
+        utm_medium: 'organic',
+        utm_campaign: 'canva_free_class',
+        capturedAt: new Date().toISOString(),
+      });
     }
   } catch {
     // Ignore storage errors

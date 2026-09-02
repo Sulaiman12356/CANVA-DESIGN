@@ -1,4 +1,4 @@
-import { safeGetItem } from './storage';
+import { safeGetItem, safeJsonParse } from './storage';
 import { RegistrationFormData } from '../types';
 
 /**
@@ -96,7 +96,7 @@ export function checkDuplicateRegistration(
 ): { isDuplicate: boolean; existingRecord?: RegistrationFormData } {
   try {
     const raw = safeGetItem('cda_canva_registrations', '[]');
-    const records: RegistrationFormData[] = JSON.parse(raw || '[]');
+    const records: RegistrationFormData[] = safeJsonParse(raw, []);
 
     const normalizedEmail = email.trim().toLowerCase();
     const phoneCheck = validateAndFormatWhatsApp(whatsapp);

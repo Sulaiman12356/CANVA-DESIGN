@@ -6,7 +6,7 @@ import {
   CanvaExperienceOption,
   LearningGoalOption,
 } from '../types';
-import { safeGetItem, safeSetItem } from '../utils/storage';
+import { safeGetItem, safeSetItem, safeJsonParse } from '../utils/storage';
 import { getCapturedUTMs } from '../utils/utm';
 import {
   validateAndFormatWhatsApp,
@@ -147,7 +147,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           }),
         });
 
-        const data = await res.json();
+        let data: any = {};
+        try {
+          const text = await res.text();
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = {};
+        }
+
         if (res.status === 403) {
           setErrorMessage('Registration is currently closed for this cohort.');
           setIsSubmitting(false);
@@ -175,7 +182,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // 3. Save locally in client storage with safe limit
       try {
         const rawExisting = safeGetItem('cda_canva_registrations', '[]');
-        const parsed = JSON.parse(rawExisting || '[]');
+        const parsed = safeJsonParse<RegistrationFormData[]>(rawExisting, []);
         const existing: RegistrationFormData[] = Array.isArray(parsed) ? parsed : [];
         existing.push(completeRegistrationPayload);
         const trimmed = existing.slice(-200);

@@ -124,6 +124,8 @@ export interface ClassSettingsRecord {
   registration_status: 'OPEN' | 'CLOSED';
   automation_enabled: boolean;
   automation_template_id: string;
+  founder_image_url?: string;
+  countdown_target_date?: string;
   updated_at: string;
 }
 
