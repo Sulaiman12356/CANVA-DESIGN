@@ -84,6 +84,38 @@
   ],
   "audit_logs": [
     {
+      "id": "log_1788451467139_3dok",
+      "action": "Class settings updated",
+      "details": "Updated class configuration (Status: OPEN, Automation: ON)",
+      "admin_email": "ipesolasulaiman@gmail.com",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-03T16:04:27.139Z"
+    },
+    {
+      "id": "log_1788450684801_2bvw",
+      "action": "Class settings updated",
+      "details": "Updated class configuration (Status: OPEN, Automation: ON)",
+      "admin_email": "ipesolasulaiman@gmail.com",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-03T15:51:24.801Z"
+    },
+    {
+      "id": "log_1788450602265_3em5",
+      "action": "Class settings updated",
+      "details": "Updated class configuration (Status: OPEN, Automation: ON)",
+      "admin_email": "ipesolasulaiman@gmail.com",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-03T15:50:02.265Z"
+    },
+    {
+      "id": "log_1788449464764_xugl",
+      "action": "Class settings updated",
+      "details": "Updated class configuration (Status: OPEN, Automation: ON)",
+      "admin_email": "ipesolasulaiman@gmail.com",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-03T15:31:04.764Z"
+    },
+    {
       "id": "log_1788144216451_cn4v",
       "action": "Participant registered",
       "details": "Adebayo Tester (adebayotester@gmail.com) registered from Direct",
@@ -134,13 +166,102 @@
   ],
   "class_settings": {
     "class_name": "Free 3-Day Canva Design Class",
-    "class_date": "March 20th - 22nd, 2026",
+    "class_title": "3-Day Free Canva Design Class",
+    "class_subtitle": "Learn how to use Canva to create clean, attractive and professional designs with your smartphone or laptop — even if you've never designed before.",
+    "class_description": "Intensive 3-day practical training on visual hierarchy, typography, flyer creation, and monetization.",
+    "class_date": "March 27th - 29th, 2026",
     "class_time": "8:00 PM (WAT)",
+    "class_start_time": "8:00 PM",
+    "class_end_time": "9:30 PM",
+    "timezone": "WAT (UTC+1)",
     "class_link": "https://meet.google.com/cda-canva-live",
     "whatsapp_group_link": "https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y",
     "registration_status": "OPEN",
+    "registration_deadline": "September 5, 2026, 7:59 PM",
+    "available_slots": 500,
+    "registered_count_override": 0,
+    "cta_button_text": "RESERVE MY FREE SPOT",
+    "cta_button_link": "#register",
+    "countdown_target_date": "2026-03-27T20:00:00",
+    "meta_pixel_id": "1065001129595286",
     "automation_enabled": true,
     "automation_template_id": "tmpl_reg_confirmation",
-    "updated_at": "2026-08-31T01:24:51.434Z"
+    "updated_at": "2026-09-03T16:04:27.138Z",
+    "total_registered": 0,
+    "subtitle": "Learn Skills. Earn Globally. Transform From a Complete Beginner to a Confident Visual Creator in 3 Practical Evenings.",
+    "description": "Master practical Canva design for real-world business, social media, marketing campaigns, and global client monetization.",
+    "start_time": "8:00 PM",
+    "end_time": "9:30 PM",
+    "founder_image_url": ""
+  },
+  "analytics_events": [
+    {
+      "id": "ev_1788449418727_vdhx",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/#the-problem",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.95.30",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-03T15:30:18.727Z"
+    },
+    {
+      "id": "ev_1788450301206_kz9k",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/#the-problem",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.95.30",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-03T15:45:01.206Z"
+    },
+    {
+      "id": "ev_1788450649270_mka0",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/admin/settings",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.95.30",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-03T15:50:49.270Z"
+    }
+  ],
+  "visitor_sessions": [
+    {
+      "id": "sess_1788449412690_x6o9",
+      "session_id": "sess_1788436927833_998nezv",
+      "entered_at": "2026-09-03T15:30:12.690Z",
+      "last_seen_at": "2026-09-03T16:04:19.374Z",
+      "active_seconds": 20,
+      "device": "Desktop",
+      "browser": "Chrome",
+      "referrer": "https://aistudio.google.com/",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "utm_content": "",
+      "utm_term": "",
+      "current_page": "/admin/settings",
+      "ip_address": "105.113.95.30",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "is_active": true
+    }
+  ],
+  "admin_account": {
+    "email": "ipesolasulaiman@gmail.com",
+    "name": "Onifade Sulaiman (Mr. Clarity)",
+    "role": "super_admin",
+    "password_hash": "5aa73c59ec3e2dcf5117ee0db34058d961c5b54457ab5042ecce6c39a351548ab048a95f98ceceb93e40e3199414677ad050bdc7048b71db949152914f3704aa",
+    "password_salt": "9137cca3e6874119600a502428155667",
+    "updated_at": "2026-09-03T15:30:07.352Z"
   }
 }

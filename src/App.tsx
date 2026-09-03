@@ -41,20 +41,36 @@ export default function App() {
   // Activate Real-Time Visitor Heartbeat Telemetry
   useSessionHeartbeat();
 
-  // Load public class settings from backend
+  // Load public class settings from backend and listen for live updates
   useEffect(() => {
-    fetch('/api/public/class-settings')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: PublicClassSettings | null) => {
-        if (data) {
-          setClassSettings(data);
-          if (data.meta_pixel_id) {
-            safeSetItem('cda_meta_pixel_id', data.meta_pixel_id);
-            initMetaPixel();
+    const loadSettings = () => {
+      fetch('/api/public/class-settings')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: PublicClassSettings | null) => {
+          if (data) {
+            setClassSettings(data);
+            const pixelId = data.meta_pixel_id || (data as any).metaPixelId;
+            if (pixelId) {
+              safeSetItem('cda_meta_pixel_id', pixelId);
+              initMetaPixel();
+            }
           }
-        }
-      })
-      .catch((err) => console.error('Failed to load public class settings:', err));
+        })
+        .catch((err) => console.error('Failed to load public class settings:', err));
+    };
+
+    loadSettings();
+
+    const handleSettingsUpdate = () => {
+      loadSettings();
+    };
+
+    window.addEventListener('classSettingsUpdated', handleSettingsUpdate);
+    window.addEventListener('storage', handleSettingsUpdate);
+    return () => {
+      window.removeEventListener('classSettingsUpdated', handleSettingsUpdate);
+      window.removeEventListener('storage', handleSettingsUpdate);
+    };
   }, []);
 
   // Initialize Route, UTM capture, and Meta Pixel on mount
@@ -169,6 +185,12 @@ export default function App() {
   };
 
   const handleViewLandingPage = () => {
+    fetch('/api/public/class-settings')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PublicClassSettings | null) => {
+        if (data) setClassSettings(data);
+      })
+      .catch(() => {});
     navigateTo('home');
   };
 

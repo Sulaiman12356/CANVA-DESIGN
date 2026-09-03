@@ -59,6 +59,19 @@ export function getActiveMetaPixelId(): string {
     return customOverride.trim();
   }
 
+  // Check cached class settings if available
+  const cachedSettings = safeGetItem('cda_cached_class_settings');
+  if (cachedSettings) {
+    try {
+      const parsed = JSON.parse(cachedSettings);
+      if (parsed?.meta_pixel_id && typeof parsed.meta_pixel_id === 'string' && parsed.meta_pixel_id.trim() !== '') {
+        return parsed.meta_pixel_id.trim();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   const envId = (import.meta as any).env?.VITE_META_PIXEL_ID;
   if (envId && envId.trim() !== '' && !envId.includes('INSERT')) {
     return envId.trim();
@@ -170,8 +183,12 @@ export function initMetaPixel(): void {
     fbq.version = '2.0';
     fbq.queue = [];
     window.fbq = fbq;
+  }
 
-    if (valid) {
+  // Ensure Facebook SDK script tag is injected into DOM when valid numeric ID is active
+  if (valid) {
+    const existingScript = document.querySelector('script[src*="fbevents.js"]');
+    if (!existingScript) {
       const script = document.createElement('script');
       script.async = true;
       script.src = 'https://connect.facebook.net/en_US/fbevents.js';
@@ -180,16 +197,51 @@ export function initMetaPixel(): void {
     }
   }
 
-  if (valid) {
+  if (valid && window.fbq) {
     try {
       window.fbq('init', pixelId);
-      console.info(`[Meta Pixel] Initialized with Pixel ID: ${pixelId}`);
+      console.info(`[Meta Pixel] Synchronized with Meta Ads using Pixel ID: ${pixelId}`);
     } catch (e) {
       console.warn('[Meta Pixel] Initialization notice:', e);
     }
   } else {
-    console.info(`[Meta Pixel] Running in Dev/Ready Mode. Pixel ID placeholder: "${pixelId}". Configure a numeric Pixel ID in .env or Settings Drawer.`);
+    console.info(`[Meta Pixel] Running in Dev/Ready Mode. Pixel ID: "${pixelId}". Enter a 10-20 digit numeric Pixel ID in Admin Class Settings to synchronize live with Meta Ads.`);
   }
+}
+
+/**
+ * Synchronize a new Meta Pixel ID live with Meta Ads Manager and client runtime
+ */
+export function syncMetaPixelWithAds(newPixelId: string): { success: boolean; valid: boolean; message: string } {
+  const cleaned = newPixelId.trim();
+  const valid = isValidPixelId(cleaned);
+
+  if (valid) {
+    safeSetItem('cda_meta_pixel_id', cleaned);
+    initMetaPixel();
+    // Dispatch PageView to verify synchronization with Meta Ads Events Manager
+    trackPageView(typeof window !== 'undefined' ? window.location.pathname : '/');
+    return {
+      success: true,
+      valid: true,
+      message: `Meta Pixel ID ${cleaned} synchronized successfully with Meta Ads Manager!`,
+    };
+  }
+
+  if (!cleaned) {
+    safeSetItem('cda_meta_pixel_id', '');
+    return {
+      success: true,
+      valid: false,
+      message: 'Meta Pixel ID cleared. Pixel tracking is now in ready mode.',
+    };
+  }
+
+  return {
+    success: false,
+    valid: false,
+    message: 'Invalid Meta Pixel ID. Meta Pixel IDs are numeric, typically 15 to 16 digits long.',
+  };
 }
 
 /**

@@ -123,14 +123,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     fetchCoreData();
-    // Auto-refresh live data every 10 seconds and on window focus so ongoing activity is always visible
+    // Auto-refresh live participants every 10 seconds.
+    // Only poll core settings when not actively on the class settings tab so user modifications are never overwritten.
     const interval = setInterval(() => {
-      fetchCoreData();
+      if (currentTab !== 'class_settings' && currentTab !== 'settings') {
+        fetchCoreData();
+      }
       fetchParticipants();
     }, 10000);
 
     const handleFocus = () => {
-      fetchCoreData();
+      if (currentTab !== 'class_settings' && currentTab !== 'settings') {
+        fetchCoreData();
+      }
       fetchParticipants();
     };
 
@@ -139,7 +144,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchCoreData, fetchParticipants]);
+  }, [fetchCoreData, fetchParticipants, currentTab]);
 
   // Handle Tab Switch (Special cases like 'send_email')
   const handleSelectTab = (tab: AdminTab) => {

@@ -256,6 +256,7 @@ export interface PublicClassSettings {
   automationEnabled: boolean;
   founderImageUrl?: string;
   countdownTargetDate?: string;
+  countdown_target_date?: string;
   updatedAt?: string;
 }
 

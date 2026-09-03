@@ -227,11 +227,30 @@ export const adminApi = {
           cta_button_link: raw.cta_button_link || raw.ctaButtonLink || '#register',
           automationEnabled: raw.automationEnabled ?? raw.automation_enabled ?? true,
           founderImageUrl: raw.founderImageUrl || raw.founder_image_url || '',
-          countdownTargetDate: raw.countdownTargetDate || raw.countdown_target_date || '2026-09-05T20:00:00',
+          countdownTargetDate: raw.countdownTargetDate || raw.countdown_target_date || '2026-03-27T20:00:00',
+          countdown_target_date: raw.countdown_target_date || raw.countdownTargetDate || '2026-03-27T20:00:00',
         };
       }
     } catch {
       // fallback
+    }
+
+    // Try cached local settings
+    const cachedSettingsStr = safeGetItem('cda_cached_class_settings');
+    if (cachedSettingsStr) {
+      try {
+        const cached = JSON.parse(cachedSettingsStr);
+        if (cached && (cached.class_date || cached.classDate)) {
+          return {
+            ...cached,
+            className: cached.class_name || cached.className,
+            classDate: cached.class_date || cached.classDate,
+            classTime: cached.class_time || cached.classTime,
+            countdownTargetDate: cached.countdown_target_date || cached.countdownTargetDate,
+            countdown_target_date: cached.countdown_target_date || cached.countdownTargetDate,
+          };
+        }
+      } catch {}
     }
 
     // Try Firestore directly
@@ -245,7 +264,7 @@ export const adminApi = {
           classDescription: fsSettings.class_description || fsSettings.description || '',
           subtitle: fsSettings.subtitle || fsSettings.class_subtitle || '',
           description: fsSettings.description || fsSettings.class_description || '',
-          classDate: fsSettings.class_date || 'Friday 5th – Sunday 7th September, 2026',
+          classDate: fsSettings.class_date || 'March 27th - 29th, 2026',
           classTime: fsSettings.class_time || '8:00 PM – 9:30 PM (WAT)',
           classStartTime: fsSettings.class_start_time || fsSettings.start_time || '8:00 PM',
           classEndTime: fsSettings.class_end_time || fsSettings.end_time || '9:30 PM',
@@ -273,7 +292,8 @@ export const adminApi = {
           cta_button_link: fsSettings.cta_button_link || '#register',
           automationEnabled: fsSettings.automation_enabled ?? true,
           founderImageUrl: fsSettings.founder_image_url || '',
-          countdownTargetDate: fsSettings.countdown_target_date || '2026-09-05T20:00:00',
+          countdownTargetDate: fsSettings.countdown_target_date || '2026-03-27T20:00:00',
+          countdown_target_date: fsSettings.countdown_target_date || '2026-03-27T20:00:00',
         };
       }
     } catch {
@@ -282,14 +302,15 @@ export const adminApi = {
 
     return {
       className: 'Free 3-Day Canva Design Class',
-      classDate: 'Friday 5th – Sunday 7th September, 2026',
+      classDate: 'March 27th - 29th, 2026',
       classTime: '8:00 PM – 9:30 PM (WAT)',
       classLink: 'https://meet.google.com/cda-canva-live',
       whatsappGroupLink: 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
       registrationStatus: 'OPEN',
       automationEnabled: true,
       founderImageUrl: '',
-      countdownTargetDate: '2026-09-05T20:00:00',
+      countdownTargetDate: '2026-03-27T20:00:00',
+      countdown_target_date: '2026-03-27T20:00:00',
       metaPixelId: '',
       meta_pixel_id: '',
       ctaButtonText: 'RESERVE MY FREE SPOT',
@@ -762,19 +783,37 @@ export const adminApi = {
       const res = await fetchWithAuth('/api/admin/class-settings');
       if (res.ok) {
         const data = await safeJson(res);
-        return data.settings;
+        if (data.settings) {
+          safeSetItem('cda_cached_class_settings', JSON.stringify(data.settings));
+          return data.settings;
+        }
       }
     } catch {
       // fallback
     }
 
+    // Check cached local settings first so user changes never revert
+    const cachedStr = safeGetItem('cda_cached_class_settings');
+    if (cachedStr) {
+      try {
+        const cached = JSON.parse(cachedStr);
+        if (cached && (cached.class_date || cached.classDate)) {
+          return cached;
+        }
+      } catch {}
+    }
+
     const fsSettings = await getFirestoreClassSettings();
-    if (fsSettings) return fsSettings;
+    if (fsSettings) {
+      safeSetItem('cda_cached_class_settings', JSON.stringify(fsSettings));
+      return fsSettings;
+    }
 
     return {
       class_name: 'Free 3-Day Canva Design Class',
-      class_date: 'Friday 5th – Sunday 7th September, 2026',
+      class_date: 'March 27th - 29th, 2026',
       class_time: '8:00 PM – 9:30 PM (WAT)',
+      countdown_target_date: '2026-03-27T20:00:00',
       class_link: 'https://meet.google.com/cda-canva-live',
       whatsapp_group_link: 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
       registration_status: 'OPEN',
@@ -785,6 +824,7 @@ export const adminApi = {
   },
 
   async updateClassSettings(updates: Partial<ClassSettings>): Promise<ClassSettings> {
+    let saved: ClassSettings | null = null;
     try {
       const res = await fetchWithAuth('/api/admin/class-settings', {
         method: 'PUT',
@@ -792,25 +832,34 @@ export const adminApi = {
       });
       if (res.ok) {
         const data = await safeJson(res);
-        return data.settings;
+        if (data.settings) {
+          saved = data.settings;
+          safeSetItem('cda_cached_class_settings', JSON.stringify(saved));
+        }
       }
     } catch {
       // fallback
     }
 
     await saveFirestoreClassSettings(updates);
-    return {
-      class_name: updates.class_name || 'Free 3-Day Canva Design Class',
-      class_date: updates.class_date || '',
-      class_time: updates.class_time || '',
-      class_link: updates.class_link || '',
-      whatsapp_group_link: updates.whatsapp_group_link || '',
-      registration_status: updates.registration_status || 'OPEN',
-      automation_enabled: updates.automation_enabled ?? true,
-      automation_template_id: updates.automation_template_id || 'tmpl_reg_confirmation',
+
+    const merged: ClassSettings = {
+      ...(saved || {}),
+      class_name: updates.class_name || saved?.class_name || 'Free 3-Day Canva Design Class',
+      class_date: updates.class_date || saved?.class_date || 'March 27th - 29th, 2026',
+      class_time: updates.class_time || saved?.class_time || '8:00 PM – 9:30 PM (WAT)',
+      countdown_target_date: updates.countdown_target_date || saved?.countdown_target_date || '2026-03-27T20:00:00',
+      class_link: updates.class_link || saved?.class_link || 'https://meet.google.com/cda-canva-live',
+      whatsapp_group_link: updates.whatsapp_group_link || saved?.whatsapp_group_link || 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
+      registration_status: updates.registration_status || saved?.registration_status || 'OPEN',
+      automation_enabled: updates.automation_enabled ?? saved?.automation_enabled ?? true,
+      automation_template_id: updates.automation_template_id || saved?.automation_template_id || 'tmpl_reg_confirmation',
       updated_at: new Date().toISOString(),
       ...updates,
     };
+
+    safeSetItem('cda_cached_class_settings', JSON.stringify(merged));
+    return merged;
   },
 
   async getAuditLogs(): Promise<AuditLog[]> {

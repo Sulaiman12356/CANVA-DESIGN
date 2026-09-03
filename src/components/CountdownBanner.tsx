@@ -45,8 +45,9 @@ export const CountdownBanner: React.FC<CountdownBannerProps> = ({
   useEffect(() => {
     const calculateTargetTimestamp = (): number => {
       // 1. If explicit ISO countdown_target_date is provided by admin
-      if (settings?.countdown_target_date) {
-        const parsed = new Date(settings.countdown_target_date).getTime();
+      const targetStr = settings?.countdown_target_date || (settings as any)?.countdownTargetDate;
+      if (targetStr) {
+        const parsed = new Date(targetStr).getTime();
         if (!isNaN(parsed)) return parsed;
       }
 
@@ -91,8 +92,8 @@ export const CountdownBanner: React.FC<CountdownBannerProps> = ({
     return () => clearInterval(interval);
   }, [settings]);
 
-  const classDateLabel = settings?.class_date || SITE_CONFIG.CLASS_DATE;
-  const classTimeLabel = settings?.class_time || SITE_CONFIG.CLASS_TIME;
+  const classDateLabel = settings?.class_date || (settings as any)?.classDate || SITE_CONFIG.CLASS_DATE;
+  const classTimeLabel = settings?.class_time || (settings as any)?.classTime || SITE_CONFIG.CLASS_TIME;
 
   return (
     <div

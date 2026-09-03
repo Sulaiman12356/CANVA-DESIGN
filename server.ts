@@ -365,7 +365,11 @@ app.post('/api/meta-conversions', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'eventName is required' });
     }
 
-    const pixelOrDatasetId = process.env.META_DATASET_ID || process.env.META_PIXEL_ID;
+    const settings = db.getClassSettings();
+    const pixelOrDatasetId =
+      settings.meta_pixel_id ||
+      process.env.META_DATASET_ID ||
+      process.env.META_PIXEL_ID;
     const accessToken = process.env.META_ACCESS_TOKEN;
     const apiVersion = process.env.META_API_VERSION || 'v21.0';
     const testEventCode = process.env.META_TEST_EVENT_CODE;
