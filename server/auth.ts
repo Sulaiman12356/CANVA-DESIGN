@@ -68,12 +68,19 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export function requireAdminAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  let token: string | undefined;
+
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7).trim();
+  } else if (req.query.token && typeof req.query.token === 'string') {
+    token = req.query.token.trim();
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized: Admin authentication token required' });
   }
 
-  const token = authHeader.substring(7).trim();
   const user = verifyToken(token);
 
   if (!user) {

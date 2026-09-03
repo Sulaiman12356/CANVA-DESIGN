@@ -12,6 +12,7 @@ import { WhatsAppManagerView } from './WhatsAppManagerView';
 import { AuditLogView } from './AuditLogView';
 import { AdminSettingsView } from './AdminSettingsView';
 import { ImportExportModal } from './ImportExportModal';
+import { AddParticipantModal } from './AddParticipantModal';
 import {
   AdminUser,
   AdminParticipant,
@@ -63,6 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [emailTargetParticipant, setEmailTargetParticipant] = useState<AdminParticipant | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // 1. Initial Data Fetch (User, Stats, Settings, Templates)
   const fetchCoreData = useCallback(async () => {
@@ -121,11 +123,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     fetchCoreData();
-  }, [fetchCoreData]);
+    // Auto-refresh live data every 10 seconds and on window focus so ongoing activity is always visible
+    const interval = setInterval(() => {
+      fetchCoreData();
+      fetchParticipants();
+    }, 10000);
 
-  useEffect(() => {
-    fetchParticipants();
-  }, [fetchParticipants]);
+    const handleFocus = () => {
+      fetchCoreData();
+      fetchParticipants();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchCoreData, fetchParticipants]);
 
   // Handle Tab Switch (Special cases like 'send_email')
   const handleSelectTab = (tab: AdminTab) => {
@@ -135,6 +149,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
     setCurrentTab(tab);
+
+    const pathMap: Record<AdminTab, string> = {
+      dashboard: '/admin/dashboard',
+      live_activity: '/admin/activity',
+      participants: '/admin/participants',
+      email_templates: '/admin/emails',
+      analytics: '/admin/analytics',
+      class_settings: '/admin/settings',
+      whatsapp: '/admin/whatsapp',
+      audit_logs: '/admin/audit',
+      admin_settings: '/admin/account',
+      send_email: '/admin/dashboard',
+    };
+    const targetPath = pathMap[tab];
+    if (targetPath && window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
   };
 
   // Participant Actions
@@ -195,18 +226,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const handleDownloadCSV = () => {
-    const query = new URLSearchParams();
-    if (searchQuery) query.set('q', searchQuery);
-    if (selectedStatus && selectedStatus !== 'All') query.set('status', selectedStatus);
-    if (selectedDevice && selectedDevice !== 'All') query.set('device', selectedDevice);
-    if (selectedExperience && selectedExperience !== 'All')
-      query.set('canva_experience', selectedExperience);
-    if (selectedSource && selectedSource !== 'All') query.set('source', selectedSource);
-    if (selectedInterest && selectedInterest !== 'All')
-      query.set('learning_interest', selectedInterest);
-
-    window.location.href = `/api/admin/participants/export/csv?${query.toString()}`;
+  const handleDownloadCSV = async () => {
+    try {
+      await adminApi.downloadCSV({
+        q: searchQuery,
+        status: selectedStatus,
+        device: selectedDevice,
+        canva_experience: selectedExperience,
+        source: selectedSource,
+        learning_interest: selectedInterest,
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to export CSV');
+    }
   };
 
   const handleClearFilters = () => {
@@ -292,6 +324,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onDeleteParticipant={handleDeleteParticipant}
           onDownloadCSV={handleDownloadCSV}
           onOpenImportModal={() => setIsImportModalOpen(true)}
+          onOpenAddParticipant={() => setIsAddModalOpen(true)}
           onResendConfirmation={handleResendConfirmation}
         />
       )}
@@ -390,6 +423,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportSuccess={() => {
+          fetchParticipants();
+          fetchCoreData();
+        }}
+      />
+
+      {/* Manual Participant Enrollment Modal */}
+      <AddParticipantModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onCreated={() => {
           fetchParticipants();
           fetchCoreData();
         }}

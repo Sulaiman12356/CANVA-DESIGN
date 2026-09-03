@@ -10,11 +10,21 @@ import {
   Flame
 } from 'lucide-react';
 
+import { PublicClassSettings, ClassSettings } from '../types';
+
 interface FinalCTAProps {
   onRegisterClick: () => void;
+  classSettings?: PublicClassSettings | ClassSettings | null;
 }
 
-export const FinalCTA: React.FC<FinalCTAProps> = ({ onRegisterClick }) => {
+export const FinalCTA: React.FC<FinalCTAProps> = ({ onRegisterClick, classSettings }) => {
+  const isClosed =
+    classSettings?.registration_status === 'CLOSED' ||
+    (classSettings as any)?.registrationStatus === 'CLOSED';
+  const ctaText =
+    classSettings?.cta_button_text ||
+    (classSettings as any)?.ctaButtonText ||
+    'RESERVE MY FREE SPOT';
   return (
     <section className="py-20 sm:py-28 bg-slate-950 text-white relative overflow-hidden">
       {/* Background Gradients & Geometry */}
@@ -58,9 +68,13 @@ export const FinalCTA: React.FC<FinalCTAProps> = ({ onRegisterClick }) => {
               onRegisterClick();
             }}
             id="final-section-reserve-btn"
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-extrabold text-lg sm:text-xl px-10 py-5 rounded-2xl shadow-2xl shadow-blue-600/40 hover:shadow-blue-600/60 transition-all flex items-center justify-center gap-3 cursor-pointer group"
+            className={`w-full sm:w-auto font-extrabold text-lg sm:text-xl px-10 py-5 rounded-2xl shadow-2xl transition-all flex items-center justify-center gap-3 cursor-pointer group ${
+              isClosed
+                ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white shadow-blue-600/40 hover:shadow-blue-600/60'
+            }`}
           >
-            <span>RESERVE MY FREE SPOT</span>
+            <span>{isClosed ? 'REGISTRATION CLOSED' : ctaText}</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
           </button>
         </div>

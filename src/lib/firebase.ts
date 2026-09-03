@@ -284,7 +284,7 @@ export async function signInAdminWithEmailPassword(
 
   if (!isAuthorizedAdminEmail(cleanEmail)) {
     throw new Error(
-      `Access Denied: The email (${cleanEmail}) is not authorized as an Administrator. Please use ipesolasulaiman@gmail.com.`
+      'Access Denied: The provided email is not authorized as an Administrator.'
     );
   }
 
@@ -364,7 +364,7 @@ export async function signInAdminWithGoogle(): Promise<AdminUser> {
     if (!isAuthorizedAdminEmail(userEmail)) {
       await signOut(auth);
       throw new Error(
-        `Access Denied: The Google Account (${userEmail}) is not authorized as an Administrator. Please use ipesolasulaiman@gmail.com.`
+        'Access Denied: The Google Account is not authorized as an Administrator.'
       );
     }
 

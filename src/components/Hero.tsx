@@ -16,12 +16,31 @@ import {
   Flame
 } from 'lucide-react';
 
+import { PublicClassSettings, ClassSettings } from '../types';
+
 interface HeroProps {
   onRegisterClick: () => void;
   onLearnMoreClick: () => void;
+  classSettings?: PublicClassSettings | ClassSettings | null;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onLearnMoreClick }) => {
+export const Hero: React.FC<HeroProps> = ({
+  onRegisterClick,
+  onLearnMoreClick,
+  classSettings,
+}) => {
+  const isClosed =
+    classSettings?.registration_status === 'CLOSED' ||
+    (classSettings as any)?.registrationStatus === 'CLOSED';
+  const ctaText =
+    classSettings?.cta_button_text ||
+    (classSettings as any)?.ctaButtonText ||
+    'RESERVE MY FREE SPOT';
+  const subtitle =
+    classSettings?.class_subtitle ||
+    classSettings?.subtitle ||
+    (classSettings as any)?.classSubtitle ||
+    SITE_CONFIG.CLASS_SUBTITLE;
   return (
     <section
       id="hero"
@@ -55,7 +74,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onLearnMoreClick })
           </h1>
 
           <p className="text-base sm:text-xl text-slate-700 font-medium max-w-3xl mx-auto leading-relaxed">
-            {SITE_CONFIG.CLASS_SUBTITLE}
+            {subtitle}
           </p>
 
           {/* Authentic First-Person Hook */}
@@ -75,9 +94,13 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onLearnMoreClick })
                 onRegisterClick();
               }}
               id="hero-reserve-cta"
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-base sm:text-lg px-8 py-4 rounded-2xl shadow-xl shadow-blue-600/30 hover:shadow-2xl hover:shadow-blue-600/40 transition-all flex items-center justify-center gap-3 group cursor-pointer"
+              className={`w-full sm:w-auto font-extrabold text-base sm:text-lg px-8 py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 group cursor-pointer ${
+                isClosed
+                  ? 'bg-slate-700 text-white hover:bg-slate-800'
+                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30 hover:shadow-2xl hover:shadow-blue-600/40'
+              }`}
             >
-              <span>RESERVE MY FREE SPOT</span>
+              <span>{isClosed ? 'REGISTRATION CLOSED' : ctaText}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
             </button>
 

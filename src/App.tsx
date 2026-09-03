@@ -19,7 +19,7 @@ import { ThankYouPage } from './components/ThankYouPage';
 import { PrivacyPolicyModal, TermsModal, CookieNotice } from './components/LegalModals';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { RegistrationFormData, AdminUser } from './types';
+import { RegistrationFormData, AdminUser, PublicClassSettings } from './types';
 import { getCapturedUTMs } from './utils/utm';
 import { initMetaPixel, trackPageView } from './utils/metaPixel';
 import { safeGetItem, safeSetItem } from './utils/storage';
@@ -36,9 +36,26 @@ export default function App() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [showCookieNotice, setShowCookieNotice] = useState(false);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [classSettings, setClassSettings] = useState<PublicClassSettings | null>(null);
 
   // Activate Real-Time Visitor Heartbeat Telemetry
   useSessionHeartbeat();
+
+  // Load public class settings from backend
+  useEffect(() => {
+    fetch('/api/public/class-settings')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PublicClassSettings | null) => {
+        if (data) {
+          setClassSettings(data);
+          if (data.meta_pixel_id) {
+            safeSetItem('cda_meta_pixel_id', data.meta_pixel_id);
+            initMetaPixel();
+          }
+        }
+      })
+      .catch((err) => console.error('Failed to load public class settings:', err));
+  }, []);
 
   // Initialize Route, UTM capture, and Meta Pixel on mount
   useEffect(() => {
@@ -244,6 +261,7 @@ export default function App() {
       <Header
         onRegisterClick={scrollToRegister}
         onAdminClick={() => navigateTo('admin-login')}
+        classSettings={classSettings}
       />
 
       <main className="flex-grow">
@@ -251,6 +269,7 @@ export default function App() {
         <Hero
           onRegisterClick={scrollToRegister}
           onLearnMoreClick={scrollToLearning}
+          classSettings={classSettings}
         />
 
         {/* 2. The Problem Section */}
@@ -283,16 +302,17 @@ export default function App() {
           onSuccessRedirect={handleRegistrationSuccess}
           onOpenPrivacy={() => setIsPrivacyOpen(true)}
           onOpenTerms={() => setIsTermsOpen(true)}
+          classSettings={classSettings}
         />
 
         {/* 11. Official WhatsApp Group Community Banner */}
-        <WhatsAppCTA />
+        <WhatsAppCTA whatsappLink={classSettings?.whatsapp_group_link} />
 
         {/* 12. Frequently Asked Questions */}
         <FAQ onRegisterClick={scrollToRegister} />
 
         {/* 13. High-Conversion Final CTA */}
-        <FinalCTA onRegisterClick={scrollToRegister} />
+        <FinalCTA onRegisterClick={scrollToRegister} classSettings={classSettings} />
       </main>
 
       {/* 14. Footer with Admin Dashboard Access */}

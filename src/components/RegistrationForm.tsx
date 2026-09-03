@@ -17,6 +17,7 @@ import {
   trackSuccessfulRegistration,
   trackInitiateRegistration,
 } from '../utils/metaPixel';
+import { saveFirestoreParticipant, addFirestoreAuditLog } from '../lib/firebase';
 import {
   Sparkles,
   CheckCircle2,
@@ -36,11 +37,14 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+import { PublicClassSettings, ClassSettings } from '../types';
+
 interface RegistrationFormProps {
   formRef?: React.RefObject<HTMLDivElement>;
   onSuccessRedirect?: (registeredStudent: RegistrationFormData) => void;
   onOpenPrivacy?: () => void;
   onOpenTerms?: () => void;
+  classSettings?: PublicClassSettings | ClassSettings | null;
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
@@ -48,6 +52,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   onSuccessRedirect,
   onOpenPrivacy,
   onOpenTerms,
+  classSettings,
 }) => {
   const [formData, setFormData] = useState<RegistrationFormData>({
     fullName: '',
@@ -63,6 +68,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+  const isClosed =
+    classSettings?.registration_status === 'CLOSED' ||
+    (classSettings as any)?.registrationStatus === 'CLOSED';
+  const ctaText =
+    classSettings?.cta_button_text ||
+    (classSettings as any)?.ctaButtonText ||
+    'RESERVE MY FREE SPOT';
 
   // Phone preview helper
   const phoneValidation = validateAndFormatWhatsApp(formData.whatsappNumber);
@@ -105,16 +118,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setErrorMessage(null);
     setDuplicateWarning(null);
 
-    if (!validate()) {
+    if (isClosed) {
+      setErrorMessage('Registration is currently closed for this cohort.');
       return;
     }
 
-    // Check duplicate registration
-    const dupCheck = checkDuplicateRegistration(formData.email, formData.whatsappNumber);
-    if (dupCheck.isDuplicate) {
-      setDuplicateWarning(
-        `This email or WhatsApp number is already registered for the class. We'll direct you straight to your confirmation pass!`
-      );
+    if (!validate()) {
+      return;
     }
 
     setIsSubmitting(true);
@@ -156,7 +166,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         }
 
         if (res.status === 403) {
-          setErrorMessage('Registration is currently closed for this cohort.');
+          setErrorMessage('Registration is currently closed for this cohort. Please stay tuned for our next schedule.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (res.status === 409) {
+          setErrorMessage(data.error || 'This email address is already registered for this Canva class. Please check your inbox or spam folder for your admission pass.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (!res.ok) {
+          setErrorMessage(data.error || `Registration failed (Status ${res.status}). Please check your details and try again.`);
           setIsSubmitting(false);
           return;
         }
@@ -165,8 +187,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           serverTicketNumber = data.participant.ticket_number || data.ticketNumber || serverTicketNumber;
           serverId = data.participant.id || serverId;
         }
-      } catch (apiErr) {
-        console.warn('Server registration notice, continuing with client pass:', apiErr);
+      } catch (apiErr: any) {
+        console.error('Registration network or server error:', apiErr);
+        setErrorMessage('Unable to connect to the registration server. Please check your internet connection and try again.');
+        setIsSubmitting(false);
+        return;
       }
 
       const completeRegistrationPayload: RegistrationFormData = {
@@ -191,7 +216,51 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         console.warn('Could not persist registration locally:', storageErr);
       }
 
-      // 4. Fire Meta Conversion Events (CompleteRegistration and Lead) ONLY on successful registration
+      // 4. Directly synchronize participant record & audit log to Firestore for real-time Admin visibility
+      const mappedExp: 'Beginner' | 'Used Canva Before' | 'Intermediate' =
+        completeRegistrationPayload.canvaExperience === 'Complete beginner'
+          ? 'Beginner'
+          : completeRegistrationPayload.canvaExperience === "I've used Canva before"
+          ? 'Used Canva Before'
+          : 'Intermediate';
+
+      saveFirestoreParticipant({
+        id: String(serverId),
+        full_name: completeRegistrationPayload.fullName,
+        email: completeRegistrationPayload.email,
+        whatsapp: completeRegistrationPayload.whatsappNumber,
+        device: completeRegistrationPayload.device,
+        learning_interest: completeRegistrationPayload.learningGoal,
+        canva_experience: mappedExp,
+        ticket_number: serverTicketNumber,
+        utm_source: utms.utm_source || 'Direct',
+        utm_medium: utms.utm_medium || 'none',
+        utm_campaign: utms.utm_campaign || 'Canva Free Class',
+        utm_content: utms.utm_content || '',
+        utm_term: utms.utm_term || '',
+        registration_date: new Date().toISOString().split('T')[0],
+        registration_time: new Date().toLocaleTimeString(),
+        status: 'REGISTERED',
+        whatsapp_joined: false,
+        attendance_day_1: false,
+        attendance_day_2: false,
+        attendance_day_3: false,
+        masterclass_interest: false,
+        email_status: 'sent',
+        last_email_sent: new Date().toISOString(),
+        email_attempts: 1,
+        admin_notes: '',
+        created_at: completeRegistrationPayload.registeredAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).catch(() => {});
+
+      addFirestoreAuditLog(
+        'Participant registered',
+        `${completeRegistrationPayload.fullName} (${completeRegistrationPayload.email}) registered online [Ticket #${serverTicketNumber}]`,
+        'system'
+      ).catch(() => {});
+
+      // 5. Fire Meta Conversion Events (CompleteRegistration and Lead) ONLY on successful registration
       try {
         trackSuccessfulRegistration(completeRegistrationPayload);
       } catch (metaErr) {
@@ -481,18 +550,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="pt-3">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isClosed}
                 id="submit-registration-form-btn"
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-base sm:text-lg py-4 px-6 rounded-2xl shadow-xl shadow-blue-600/30 hover:shadow-2xl hover:shadow-blue-600/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed group"
+                className={`w-full font-black text-base sm:text-lg py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed group ${
+                  isClosed
+                    ? 'bg-slate-400 text-white cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30 hover:shadow-2xl hover:shadow-blue-600/40'
+                }`}
               >
-                {isSubmitting ? (
+                {isClosed ? (
+                  <span>REGISTRATION CLOSED</span>
+                ) : isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span>Reserving your seat & generating ticket...</span>
                   </>
                 ) : (
                   <>
-                    <span>RESERVE MY FREE SPOT</span>
+                    <span>{ctaText}</span>
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}

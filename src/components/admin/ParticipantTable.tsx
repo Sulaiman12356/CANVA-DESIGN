@@ -21,8 +21,10 @@ import {
   Clock,
   X,
   MessageCircle,
+  UserPlus,
 } from 'lucide-react';
 import { AdminParticipant, ParticipantStatus } from '../../types';
+import { formatExactRegistrationTime } from '../../utils/dateFormat';
 
 interface ParticipantTableProps {
   participants: AdminParticipant[];
@@ -54,6 +56,7 @@ interface ParticipantTableProps {
   onDeleteParticipant: (participant: AdminParticipant) => void;
   onDownloadCSV: () => void;
   onOpenImportModal: () => void;
+  onOpenAddParticipant?: () => void;
   onResendConfirmation?: (participant: AdminParticipant) => Promise<void>;
 }
 
@@ -115,6 +118,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
   onDeleteParticipant,
   onDownloadCSV,
   onOpenImportModal,
+  onOpenAddParticipant,
   onResendConfirmation,
 }) => {
   const safeParticipants = participants || [];
@@ -169,6 +173,17 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          {/* Add Participant Button */}
+          {onOpenAddParticipant && (
+            <button
+              onClick={onOpenAddParticipant}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>ADD PARTICIPANT</span>
+            </button>
+          )}
+
           {/* Send Bulk Email Button */}
           <button
             onClick={onSendBulkEmail}
@@ -481,13 +496,8 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
                       </td>
 
                       {/* Registration Date */}
-                      <td className="py-3 px-3 text-slate-500 whitespace-nowrap font-medium">
-                        {p.registration_date}
-                        {p.registration_time && (
-                          <span className="block text-[10px] text-slate-400">
-                            {p.registration_time}
-                          </span>
-                        )}
+                      <td className="py-3 px-3 text-slate-600 whitespace-nowrap font-medium text-xs">
+                        {formatExactRegistrationTime(p.registration_date, p.registration_time, p.created_at)}
                       </td>
 
                       {/* Source */}

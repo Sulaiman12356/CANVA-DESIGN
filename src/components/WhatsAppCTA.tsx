@@ -11,7 +11,12 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
-export const WhatsAppCTA: React.FC = () => {
+interface WhatsAppCTAProps {
+  whatsappLink?: string;
+}
+
+export const WhatsAppCTA: React.FC<WhatsAppCTAProps> = ({ whatsappLink }) => {
+  const link = whatsappLink || SITE_CONFIG.WHATSAPP_GROUP_LINK;
   return (
     <section className="py-16 sm:py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -57,7 +62,7 @@ export const WhatsAppCTA: React.FC = () => {
             {/* Right Action */}
             <div className="md:col-span-4 flex flex-col items-center md:items-end justify-center text-center">
               <a
-                href={SITE_CONFIG.WHATSAPP_GROUP_LINK}
+                href={link}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackWhatsAppClick('WhatsApp Community Section', 'group')}

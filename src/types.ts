@@ -188,11 +188,28 @@ export interface AuditLog {
 
 export interface ClassSettings {
   class_name: string;
+  class_title?: string;
+  class_subtitle?: string;
+  class_description?: string;
+  subtitle?: string;
+  description?: string;
   class_date: string;
   class_time: string;
+  class_start_time?: string;
+  class_end_time?: string;
+  start_time?: string;
+  end_time?: string;
+  timezone?: string;
   class_link: string;
   whatsapp_group_link: string;
   registration_status: 'OPEN' | 'CLOSED';
+  registration_deadline?: string;
+  available_slots?: number;
+  registered_count_override?: number;
+  total_registered?: number;
+  cta_button_text?: string;
+  cta_button_link?: string;
+  meta_pixel_id?: string;
   automation_enabled: boolean;
   automation_template_id: string;
   founder_image_url?: string;
@@ -202,14 +219,32 @@ export interface ClassSettings {
 
 export interface PublicClassSettings {
   className: string;
+  classTitle?: string;
+  classSubtitle?: string;
+  classDescription?: string;
+  subtitle?: string;
+  description?: string;
   classDate: string;
   classTime: string;
+  classStartTime?: string;
+  classEndTime?: string;
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
   classLink: string;
   whatsappGroupLink: string;
   registrationStatus: 'OPEN' | 'CLOSED';
+  registrationDeadline?: string;
+  availableSlots?: number;
+  registeredCount?: number;
+  totalRegistered?: number;
+  ctaButtonText?: string;
+  ctaButtonLink?: string;
+  metaPixelId?: string;
   automationEnabled: boolean;
   founderImageUrl?: string;
   countdownTargetDate?: string;
+  updatedAt?: string;
 }
 
 export interface LearningItem {

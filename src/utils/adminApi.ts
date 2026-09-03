@@ -770,4 +770,163 @@ export const adminApi = {
 
     return [];
   },
+
+  async createParticipant(payload: {
+    fullName: string;
+    email: string;
+    whatsappNumber: string;
+    device?: string;
+    canvaExperience?: string;
+    learningInterest?: string;
+    status?: string;
+    adminNotes?: string;
+    sendConfirmation?: boolean;
+  }): Promise<{ success: boolean; participant: AdminParticipant; message?: string }> {
+    try {
+      const res = await fetchWithAuth('/api/admin/participants', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await safeJson(res);
+      if (!res.ok) throw new Error(data.error || 'Failed to create participant');
+      return data;
+    } catch (err: any) {
+      const now = new Date();
+      const ticket = `CDA-${Math.floor(100000 + Math.random() * 900000)}`;
+      const p: AdminParticipant = {
+        id: `part_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        full_name: payload.fullName,
+        email: payload.email.toLowerCase(),
+        whatsapp: payload.whatsappNumber,
+        device: payload.device || 'Smartphone',
+        canva_experience: payload.canvaExperience || 'Beginner',
+        learning_interest: payload.learningInterest || 'Everything',
+        registration_date: now.toISOString().split('T')[0],
+        registration_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        utm_source: 'Admin Manual Entry',
+        utm_medium: 'admin',
+        utm_campaign: 'Manual Registration',
+        status: (payload.status as any) || 'REGISTERED',
+        whatsapp_joined: payload.status === 'WHATSAPP JOINED',
+        attendance_day_1: false,
+        attendance_day_2: false,
+        attendance_day_3: false,
+        masterclass_interest: payload.status === 'MASTER CLASS INTERESTED',
+        email_status: 'none',
+        admin_notes: payload.adminNotes || '',
+        ticket_number: ticket,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      };
+      await saveFirestoreParticipant(p as any);
+      return { success: true, participant: p, message: 'Enrolled successfully!' };
+    }
+  },
+
+  async downloadCSV(params: {
+    q?: string;
+    status?: string;
+    device?: string;
+    canva_experience?: string;
+    source?: string;
+    learning_interest?: string;
+  } = {}): Promise<void> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.status && params.status !== 'All') query.set('status', params.status);
+    if (params.device && params.device !== 'All') query.set('device', params.device);
+    if (params.canva_experience && params.canva_experience !== 'All') query.set('canva_experience', params.canva_experience);
+    if (params.source && params.source !== 'All') query.set('source', params.source);
+    if (params.learning_interest && params.learning_interest !== 'All') query.set('learning_interest', params.learning_interest);
+
+    const token = getAdminToken();
+    if (token) query.set('token', token);
+
+    try {
+      const res = await fetchWithAuth(`/api/admin/participants/export/csv?${query.toString()}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const today = new Date().toISOString().split('T')[0];
+        a.download = `clarity-digital-academy-canva-registrations-${today}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+    } catch {
+      // fallback to direct client CSV generation
+    }
+
+    const list = await getFirestoreParticipants();
+    const headers = [
+      'ID', 'Full Name', 'Email', 'WhatsApp', 'Device', 'Canva Experience',
+      'Learning Interest', 'Registration Date', 'Registration Time', 'UTM Source',
+      'Status', 'WhatsApp Joined', 'Ticket Number', 'Notes'
+    ];
+    const escapeCSV = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
+    const rows = [headers.join(',')];
+    for (const p of list) {
+      rows.push([
+        escapeCSV(p.id), escapeCSV(p.full_name), escapeCSV(p.email), escapeCSV(p.whatsapp),
+        escapeCSV(p.device), escapeCSV(p.canva_experience), escapeCSV(p.learning_interest),
+        escapeCSV(p.registration_date), escapeCSV(p.registration_time), escapeCSV(p.utm_source),
+        escapeCSV(p.status), escapeCSV(p.whatsapp_joined ? 'Yes' : 'No'), escapeCSV(p.ticket_number),
+        escapeCSV(p.admin_notes)
+      ].join(','));
+    }
+    const blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clarity-digital-academy-canva-registrations-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+
+  async getPublicClassSettings(): Promise<PublicClassSettings | null> {
+    try {
+      const res = await fetch('/api/public/class-settings');
+      if (res.ok) {
+        return await safeJson<PublicClassSettings>(res);
+      }
+    } catch {
+      // fallback
+    }
+
+    const fsSettings = await getFirestoreClassSettings();
+    if (fsSettings) {
+      return {
+        className: fsSettings.class_name,
+        classTitle: fsSettings.class_title || fsSettings.class_name,
+        classSubtitle: fsSettings.class_subtitle || fsSettings.subtitle || '',
+        classDescription: fsSettings.class_description || fsSettings.description || '',
+        classDate: fsSettings.class_date,
+        classTime: fsSettings.class_time,
+        classStartTime: fsSettings.class_start_time || fsSettings.start_time || '8:00 PM',
+        classEndTime: fsSettings.class_end_time || fsSettings.end_time || '9:30 PM',
+        timezone: fsSettings.timezone || 'WAT (UTC+1)',
+        classLink: fsSettings.class_link,
+        whatsappGroupLink: fsSettings.whatsapp_group_link,
+        registrationStatus: fsSettings.registration_status,
+        registrationDeadline: fsSettings.registration_deadline || '',
+        availableSlots: fsSettings.available_slots || 500,
+        registeredCount: fsSettings.total_registered || 0,
+        ctaButtonText: fsSettings.cta_button_text || 'RESERVE MY FREE SPOT',
+        ctaButtonLink: fsSettings.cta_button_link || '#register',
+        automationEnabled: fsSettings.automation_enabled,
+        founderImageUrl: fsSettings.founder_image_url || '',
+        countdownTargetDate: fsSettings.countdown_target_date || '',
+        metaPixelId: fsSettings.meta_pixel_id || '',
+        updatedAt: fsSettings.updated_at,
+      };
+    }
+
+    return null;
+  },
 };

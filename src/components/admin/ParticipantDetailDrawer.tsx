@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { AdminParticipant, ParticipantStatus } from '../../types';
 import { STATUS_COLORS } from './ParticipantTable';
+import { formatExactRegistrationTime } from '../../utils/dateFormat';
 
 interface ParticipantDetailDrawerProps {
   participant: AdminParticipant | null;
@@ -334,9 +335,9 @@ export const ParticipantDetailDrawer: React.FC<ParticipantDetailDrawerProps> = (
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[11px]">Registration Date</span>
-                <span className="font-medium text-slate-700">
-                  {participant.registration_date} {participant.registration_time}
+                <span className="text-slate-400 block text-[11px]">Exact Registration Time</span>
+                <span className="font-semibold text-slate-800">
+                  {formatExactRegistrationTime(participant.registration_date, participant.registration_time, participant.created_at)}
                 </span>
               </div>
 

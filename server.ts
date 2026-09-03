@@ -158,16 +158,46 @@ app.post('/api/track/heartbeat', (req: Request, res: Response) => {
 // 3. Public Centralized Class Settings (Single Source of Truth)
 app.get('/api/public/class-settings', (req: Request, res: Response) => {
   const settings = db.getClassSettings();
+  const participants = db.getParticipants();
+  const currentRegisteredCount = participants.length + (settings.registered_count_override || 0);
+
   res.json({
     className: settings.class_name,
+    classTitle: settings.class_title || settings.class_name,
+    classSubtitle: settings.class_subtitle || '',
+    subtitle: settings.class_subtitle || '',
+    classDescription: settings.class_description || '',
+    description: settings.class_description || '',
     classDate: settings.class_date,
     classTime: settings.class_time,
+    classStartTime: settings.class_start_time || '8:00 PM',
+    startTime: settings.class_start_time || '8:00 PM',
+    classEndTime: settings.class_end_time || '9:30 PM',
+    endTime: settings.class_end_time || '9:30 PM',
+    timezone: settings.timezone || 'WAT (UTC+1)',
     classLink: settings.class_link,
     whatsappGroupLink: settings.whatsapp_group_link,
     registrationStatus: settings.registration_status,
+    registrationDeadline: settings.registration_deadline || '',
+    availableSlots: settings.available_slots || 500,
+    registeredCount: currentRegisteredCount,
+    totalRegistered: currentRegisteredCount,
+    total_registered: currentRegisteredCount,
+    ctaButtonText: settings.cta_button_text || 'RESERVE MY FREE SPOT',
+    ctaButtonLink: settings.cta_button_link || '#register',
     automationEnabled: settings.automation_enabled,
     founderImageUrl: settings.founder_image_url || '',
     countdownTargetDate: settings.countdown_target_date || '',
+    countdown_target_date: settings.countdown_target_date || '',
+    metaPixelId: settings.meta_pixel_id || process.env.VITE_META_PIXEL_ID || '',
+    meta_pixel_id: settings.meta_pixel_id || process.env.VITE_META_PIXEL_ID || '',
+    class_name: settings.class_name,
+    class_date: settings.class_date,
+    class_time: settings.class_time,
+    class_link: settings.class_link,
+    whatsapp_group_link: settings.whatsapp_group_link,
+    registration_status: settings.registration_status,
+    updatedAt: settings.updated_at,
   });
 });
 
@@ -277,8 +307,8 @@ app.post('/api/register', async (req: Request, res: Response) => {
       clientIp
     );
 
-    // 4. Trigger Automated Email according to Automation Status
-    if (settings.automation_enabled) {
+    // 4. Automated Email - dispatched immediately upon registration without manual action
+    try {
       let template = settings.automation_template_id
         ? db.getEmailTemplateById(settings.automation_template_id)
         : null;
@@ -286,12 +316,24 @@ app.post('/api/register', async (req: Request, res: Response) => {
         template = db.getEmailTemplateById('tmpl_reg_confirmation') || db.getEmailTemplates()[0];
       }
       if (template) {
-        sendEmailToParticipant(saved, template.subject, template.body).catch((err) =>
-          console.error('Auto-email dispatch error:', err)
-        );
+        sendEmailToParticipant(saved, template.subject, template.body)
+          .then((result) => {
+            console.info(`[Auto-Email] Dispatched admission pass to ${saved.email}: success=${result.success}`);
+            if (result.success) {
+              db.addAuditLog(
+                'Automated Email Sent',
+                `Confirmation pass & WhatsApp group link auto-dispatched to ${saved.email}`,
+                'system',
+                clientIp
+              );
+            }
+          })
+          .catch((err) => {
+            console.error('[Auto-Email] Dispatch error:', err);
+          });
       }
-    } else {
-      console.info(`[Email Engine] Automation disabled. Skipped email for ${saved.email}`);
+    } catch (autoErr) {
+      console.error('[Auto-Email] Trigger failure:', autoErr);
     }
 
     return res.status(201).json({
@@ -801,6 +843,97 @@ app.get('/api/admin/participants', requireAdminAuth, (req: AuthenticatedRequest,
     limit: limitNum,
     totalPages: Math.ceil(totalFiltered / limitNum),
   });
+});
+
+// 3b. Manually Create Participant (Admin Full CRUD)
+app.post('/api/admin/participants', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const {
+      full_name,
+      fullName,
+      email,
+      whatsapp,
+      whatsappNumber,
+      device = 'Smartphone',
+      canva_experience,
+      canvaExperience = 'Beginner',
+      learning_interest,
+      learningInterest = 'Everything',
+      status = 'REGISTERED',
+      admin_notes = '',
+      adminNotes = '',
+      sendConfirmation = false,
+    } = req.body;
+
+    const finalName = (full_name || fullName || '').trim();
+    const finalEmail = (email || '').trim().toLowerCase();
+    const finalWhatsApp = (whatsapp || whatsappNumber || '').trim();
+
+    if (!finalName || !finalEmail || !finalWhatsApp) {
+      return res.status(400).json({ error: 'Full Name, Email, and WhatsApp number are required.' });
+    }
+
+    if (db.getParticipantByEmail(finalEmail)) {
+      return res.status(409).json({ error: 'A participant with this email address already exists.' });
+    }
+
+    const now = new Date();
+    const ticketNumber = `CDA-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newParticipant: ParticipantRecord = {
+      id: `part_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      full_name: finalName,
+      email: finalEmail,
+      whatsapp: finalWhatsApp,
+      device: device || 'Smartphone',
+      canva_experience: canva_experience || canvaExperience || 'Beginner',
+      learning_interest: learning_interest || learningInterest || 'Everything',
+      registration_date: now.toISOString().split('T')[0],
+      registration_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      utm_source: 'Admin Manual Entry',
+      utm_medium: 'admin',
+      utm_campaign: 'Manual Registration',
+      utm_content: '',
+      utm_term: '',
+      status: status || 'REGISTERED',
+      whatsapp_joined: status === 'WHATSAPP JOINED',
+      attendance_day_1: false,
+      attendance_day_2: false,
+      attendance_day_3: false,
+      masterclass_interest: status === 'MASTER CLASS INTERESTED',
+      email_status: 'none',
+      admin_notes: (admin_notes || adminNotes || '').trim(),
+      ticket_number: ticketNumber,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+
+    const saved = db.addParticipant(newParticipant);
+
+    db.addAuditLog(
+      'Participant manually created',
+      `Admin manually enrolled ${finalName} (${finalEmail})`,
+      req.admin?.email || 'admin'
+    );
+
+    let emailResult: any = null;
+    if (sendConfirmation) {
+      const settings = db.getClassSettings();
+      const defaultTemplate = db.getEmailTemplateById(settings.automation_template_id) || db.getEmailTemplates()[0];
+      if (defaultTemplate) {
+        emailResult = await sendEmailToParticipant(saved, defaultTemplate.subject, defaultTemplate.body);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      participant: saved,
+      emailSent: emailResult ? emailResult.success : false,
+      message: `Enrolled ${finalName} successfully!`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to create participant' });
+  }
 });
 
 // 4. Single Participant Detail

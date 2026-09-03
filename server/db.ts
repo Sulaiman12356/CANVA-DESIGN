@@ -117,15 +117,27 @@ export interface AuditLogRecord {
 
 export interface ClassSettingsRecord {
   class_name: string;
+  class_title?: string;
+  class_subtitle?: string;
+  class_description?: string;
   class_date: string;
   class_time: string;
+  class_start_time?: string;
+  class_end_time?: string;
+  timezone?: string;
   class_link: string;
   whatsapp_group_link: string;
   registration_status: 'OPEN' | 'CLOSED';
+  registration_deadline?: string;
+  available_slots?: number;
+  registered_count_override?: number;
+  cta_button_text?: string;
+  cta_button_link?: string;
   automation_enabled: boolean;
   automation_template_id: string;
   founder_image_url?: string;
   countdown_target_date?: string;
+  meta_pixel_id?: string;
   updated_at: string;
 }
 
@@ -356,12 +368,25 @@ To your creative success,
 ];
 
 const INITIAL_SETTINGS: ClassSettingsRecord = {
-  class_name: 'Free 3-Day Canva Design Class',
+  class_name: '3-Day Free Canva Design Class',
+  class_title: '3-Day Free Canva Design Class',
+  class_subtitle: "Learn how to use Canva to create clean, attractive and professional designs with your smartphone or laptop — even if you've never designed before.",
+  class_description: 'Intensive 3-day practical training on visual hierarchy, typography, flyer creation, and monetization.',
   class_date: 'Friday 5th – Sunday 7th September, 2026',
   class_time: '8:00 PM – 9:30 PM (WAT)',
+  class_start_time: '8:00 PM',
+  class_end_time: '9:30 PM',
+  timezone: 'WAT (UTC+1)',
   class_link: 'https://meet.google.com/cda-canva-live',
   whatsapp_group_link: 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
   registration_status: 'OPEN',
+  registration_deadline: 'September 5, 2026, 7:59 PM',
+  available_slots: 500,
+  registered_count_override: 0,
+  cta_button_text: 'RESERVE MY FREE SPOT',
+  cta_button_link: '#register',
+  countdown_target_date: '2026-09-05T20:00:00',
+  meta_pixel_id: '',
   automation_enabled: true,
   automation_template_id: 'tmpl_reg_confirmation',
   updated_at: new Date().toISOString(),
@@ -650,9 +675,14 @@ class DatabaseManager {
     const index = this.data.participants.findIndex((p) => p.id === id);
     if (index === -1) return null;
 
+    const existing = this.data.participants[index];
     const updated: ParticipantRecord = {
-      ...this.data.participants[index],
+      ...existing,
       ...updates,
+      id: existing.id,
+      created_at: existing.created_at,
+      registration_date: existing.registration_date,
+      registration_time: existing.registration_time,
       updated_at: new Date().toISOString(),
     };
 
@@ -1098,8 +1128,14 @@ class DatabaseManager {
 
   // --- CLASS SETTINGS ---
 
-  public getClassSettings(): ClassSettingsRecord {
-    return { ...this.data.class_settings };
+  public getClassSettings(): ClassSettingsRecord & { total_registered: number } {
+    const totalCount = this.data.class_settings.registered_count_override
+      ? this.data.class_settings.registered_count_override + this.data.participants.length
+      : this.data.participants.length;
+    return {
+      ...this.data.class_settings,
+      total_registered: totalCount,
+    };
   }
 
   public updateClassSettings(updates: Partial<ClassSettingsRecord>): ClassSettingsRecord {
