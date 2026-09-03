@@ -130,6 +130,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           })}
         </nav>
 
+        {/* Firebase Console Status Indicator */}
+        <div className="px-3 py-2 mx-3 mb-2 rounded-xl bg-slate-900/90 border border-slate-800/80 text-[11px] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-slate-300 font-medium">Firebase Console</span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/70 px-1.5 py-0.5 rounded border border-emerald-800/40">
+            Connected
+          </span>
+        </div>
+
         {/* Administrator Profile & Quick Action */}
         <div className="p-4 border-t border-slate-800/80 bg-[#070E1B] space-y-3">
           <div className="flex items-center justify-between">

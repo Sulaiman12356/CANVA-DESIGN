@@ -1,7 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { syncDocumentToFirestore, deleteDocumentFromFirestore } from './firebaseSync';
+import {
+  syncDocumentToFirestore,
+  deleteDocumentFromFirestore,
+  fetchDocumentFromFirestore,
+  fetchCollectionFromFirestore,
+  getFirestoreStatus,
+} from './firebaseSync';
 
 export interface ParticipantRecord {
   id: string;
@@ -394,11 +400,14 @@ const INITIAL_SETTINGS: ClassSettingsRecord = {
 
 class DatabaseManager {
   private data: DatabaseSchema;
+  private isSyncingWithFirestore: boolean = false;
 
   constructor() {
     this.data = this.load();
     this.ensureAdminAccount();
-    this.syncAllToFirestore();
+    this.initFromFirestore().catch((err) => {
+      console.warn('[Firebase] Initial Firestore sync notice:', err?.message || err);
+    });
   }
 
   private load(): DatabaseSchema {
@@ -467,25 +476,101 @@ class DatabaseManager {
     }
   }
 
-  // --- FIREBASE FIRESTORE SYNC HELPERS ---
-  public async syncAllToFirestore() {
+  // --- FIREBASE FIRESTORE SYNC & HYDRATION HELPERS ---
+  public async initFromFirestore(): Promise<{
+    participantsLoaded: number;
+    settingsUpdated: boolean;
+    templatesLoaded: number;
+  }> {
+    if (this.isSyncingWithFirestore) return { participantsLoaded: 0, settingsUpdated: false, templatesLoaded: 0 };
+    this.isSyncingWithFirestore = true;
+
+    let participantsLoaded = 0;
+    let settingsUpdated = false;
+    let templatesLoaded = 0;
+
     try {
-      await syncDocumentToFirestore('class_settings', 'current', this.data.class_settings);
+      // 1. Hydrate Class Settings from Firestore if available
+      const remoteSettings = await fetchDocumentFromFirestore<ClassSettingsRecord>('class_settings', 'current');
+      if (remoteSettings && remoteSettings.class_name) {
+        this.data.class_settings = {
+          ...this.data.class_settings,
+          ...remoteSettings,
+        };
+        settingsUpdated = true;
+      } else {
+        await syncDocumentToFirestore('class_settings', 'current', this.data.class_settings);
+      }
+
+      // 2. Hydrate Participants from Firestore
+      const remoteParticipants = await fetchCollectionFromFirestore<ParticipantRecord>('participants');
+      if (remoteParticipants && remoteParticipants.length > 0) {
+        const localIdSet = new Set(this.data.participants.map((p) => p.id));
+        const localEmailSet = new Set(this.data.participants.map((p) => (p.email || '').toLowerCase()));
+
+        for (const rp of remoteParticipants) {
+          const hasId = localIdSet.has(rp.id);
+          const hasEmail = rp.email ? localEmailSet.has(rp.email.toLowerCase()) : false;
+
+          if (!hasId && !hasEmail) {
+            this.data.participants.unshift(rp);
+            localIdSet.add(rp.id);
+            if (rp.email) localEmailSet.add(rp.email.toLowerCase());
+            participantsLoaded++;
+          }
+        }
+      }
+
+      // Ensure all current participants are mirrored in Firestore
+      for (const p of this.data.participants) {
+        await syncDocumentToFirestore('participants', p.id, p);
+      }
+
+      // 3. Hydrate Email Templates from Firestore
+      const remoteTemplates = await fetchCollectionFromFirestore<EmailTemplateRecord>('email_templates');
+      if (remoteTemplates && remoteTemplates.length > 0) {
+        const localTemplateIds = new Set(this.data.email_templates.map((t) => t.id));
+        for (const rt of remoteTemplates) {
+          if (!localTemplateIds.has(rt.id)) {
+            this.data.email_templates.push(rt);
+            localTemplateIds.add(rt.id);
+            templatesLoaded++;
+          }
+        }
+      }
+
+      // Ensure all current templates exist in Firestore
       for (const tmpl of this.data.email_templates) {
         await syncDocumentToFirestore('email_templates', tmpl.id, tmpl);
       }
-      if (this.data.admin_account) {
-        const sanitized = {
-          email: this.data.admin_account.email,
-          name: this.data.admin_account.name,
-          role: this.data.admin_account.role,
-          updated_at: this.data.admin_account.updated_at,
-        };
-        await syncDocumentToFirestore('admin_account', 'current', sanitized);
+
+      // 4. Hydrate Admin Account
+      const remoteAdmin = await fetchDocumentFromFirestore<any>('admin_account', 'current');
+      if (remoteAdmin && remoteAdmin.email && this.data.admin_account) {
+        if (remoteAdmin.name) this.data.admin_account.name = remoteAdmin.name;
+        if (remoteAdmin.email) this.data.admin_account.email = remoteAdmin.email;
       }
-    } catch {
-      // Graceful background sync
+
+      // Save combined state to local disk storage
+      this.save();
+      console.log(
+        `[Firebase] Synced database with Firestore console: ${this.data.participants.length} participants, cohort date: "${this.data.class_settings.class_date}"`
+      );
+    } catch (err: any) {
+      console.warn('[Firebase] Bi-directional sync notice:', err?.message || err);
+    } finally {
+      this.isSyncingWithFirestore = false;
     }
+
+    return { participantsLoaded, settingsUpdated, templatesLoaded };
+  }
+
+  public async syncAllToFirestore() {
+    return this.initFromFirestore();
+  }
+
+  public async getFirestoreDatabaseStatus() {
+    return getFirestoreStatus();
   }
 
   private syncParticipantToFirestore(p: ParticipantRecord) {
@@ -732,7 +817,7 @@ class DatabaseManager {
 
     this.data.email_templates[index] = updated;
     this.save();
-    syncDocumentToFirestore('id', id, updated).catch(() => {});
+    syncDocumentToFirestore('email_templates', id, updated).catch(() => {});
     return updated;
   }
 
@@ -806,6 +891,7 @@ class DatabaseManager {
       };
       this.data.visitor_sessions[existingIndex] = updated;
       this.save();
+      syncDocumentToFirestore('visitor_sessions', updated.id, updated).catch(() => {});
       return updated;
     } else {
       const newSession: VisitorSessionRecord = {
@@ -833,6 +919,7 @@ class DatabaseManager {
         this.data.visitor_sessions = this.data.visitor_sessions.slice(0, 500);
       }
       this.save();
+      syncDocumentToFirestore('visitor_sessions', newSession.id, newSession).catch(() => {});
       return newSession;
     }
   }

@@ -1323,6 +1323,34 @@ app.get('/api/admin/audit-logs', requireAdminAuth, (req: AuthenticatedRequest, r
 });
 
 // -------------------------------------------------------------
+// FIREBASE FIRESTORE STATUS & MANUAL SYNC
+// -------------------------------------------------------------
+
+app.get('/api/admin/firebase/status', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const status = await db.getFirestoreDatabaseStatus();
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to check Firebase status' });
+  }
+});
+
+app.post('/api/admin/firebase/sync', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await db.syncAllToFirestore();
+    const status = await db.getFirestoreDatabaseStatus();
+    db.addAuditLog(
+      'Firebase manual sync executed',
+      `Full bi-directional sync completed with Firebase console. ${result.participantsLoaded} participants loaded, settings: ${result.settingsUpdated ? 'updated' : 'matched'}.`,
+      req.admin?.email || 'admin'
+    );
+    res.json({ success: true, result, status });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to sync with Firebase Firestore' });
+  }
+});
+
+// -------------------------------------------------------------
 // VITE MIDDLEWARE & SPA FALLBACK
 // -------------------------------------------------------------
 

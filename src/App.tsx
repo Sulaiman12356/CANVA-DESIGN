@@ -36,27 +36,71 @@ export default function App() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [showCookieNotice, setShowCookieNotice] = useState(false);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
-  const [classSettings, setClassSettings] = useState<PublicClassSettings | null>(null);
+  const [classSettings, setClassSettings] = useState<PublicClassSettings | null>(() => {
+    try {
+      const cached = safeGetItem('cda_cached_class_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && (parsed.class_name || parsed.className || parsed.class_date || parsed.classDate)) {
+          return {
+            className: parsed.class_name || parsed.className || 'Free 3-Day Canva Design Class',
+            classTitle: parsed.class_title || parsed.classTitle || parsed.class_name || parsed.className || '3-Day Free Canva Design Class',
+            classSubtitle: parsed.class_subtitle || parsed.classSubtitle || parsed.subtitle || '',
+            subtitle: parsed.class_subtitle || parsed.classSubtitle || parsed.subtitle || '',
+            classDescription: parsed.class_description || parsed.classDescription || parsed.description || '',
+            description: parsed.class_description || parsed.description || '',
+            classDate: parsed.class_date || parsed.classDate || 'Saturday 12th – Monday 14th September, 2026',
+            classTime: parsed.class_time || parsed.classTime || '8:00 PM (WAT)',
+            classStartTime: parsed.class_start_time || parsed.classStartTime || '8:00 PM',
+            startTime: parsed.class_start_time || parsed.startTime || '8:00 PM',
+            classEndTime: parsed.class_end_time || parsed.classEndTime || '9:30 PM',
+            endTime: parsed.class_end_time || parsed.endTime || '9:30 PM',
+            timezone: parsed.timezone || 'WAT (UTC+1)',
+            classLink: parsed.class_link || parsed.classLink || 'https://meet.google.com/cda-canva-live',
+            whatsappGroupLink: parsed.whatsapp_group_link || parsed.whatsappGroupLink || 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
+            registrationStatus: parsed.registration_status || parsed.registrationStatus || 'OPEN',
+            registrationDeadline: parsed.registration_deadline || parsed.registrationDeadline || 'September 5, 2026, 7:59 PM',
+            availableSlots: parsed.available_slots || parsed.availableSlots || 500,
+            registeredCount: parsed.total_registered || parsed.registeredCount || 0,
+            ctaButtonText: parsed.cta_button_text || parsed.ctaButtonText || 'RESERVE MY FREE SPOT',
+            ctaButtonLink: parsed.cta_button_link || parsed.ctaButtonLink || '#register',
+            countdownTargetDate: parsed.countdown_target_date || parsed.countdownTargetDate || '2026-09-10T20:00',
+            metaPixelId: parsed.meta_pixel_id || parsed.metaPixelId || '1065001129595286',
+          };
+        }
+      }
+    } catch {
+      // safe fallback
+    }
+    return null;
+  });
 
   // Activate Real-Time Visitor Heartbeat Telemetry
   useSessionHeartbeat();
 
-  // Load public class settings from backend and listen for live updates
+  // Load public class settings from backend with resilient retry and fallback
   useEffect(() => {
-    const loadSettings = () => {
-      fetch('/api/public/class-settings')
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: PublicClassSettings | null) => {
-          if (data) {
-            setClassSettings(data);
-            const pixelId = data.meta_pixel_id || (data as any).metaPixelId;
-            if (pixelId) {
-              safeSetItem('cda_meta_pixel_id', pixelId);
-              initMetaPixel();
-            }
+    let isSubscribed = true;
+    let retryTimer: any = null;
+
+    const loadSettings = async (retryCount = 0) => {
+      try {
+        const data = await adminApi.getPublicClassSettings();
+        if (data && isSubscribed) {
+          setClassSettings(data);
+          const pixelId = data.meta_pixel_id || (data as any).metaPixelId;
+          if (pixelId) {
+            safeSetItem('cda_meta_pixel_id', pixelId);
+            initMetaPixel();
           }
-        })
-        .catch((err) => console.error('Failed to load public class settings:', err));
+        }
+      } catch {
+        if (retryCount < 3 && isSubscribed) {
+          retryTimer = setTimeout(() => {
+            loadSettings(retryCount + 1);
+          }, 1500);
+        }
+      }
     };
 
     loadSettings();
@@ -68,6 +112,8 @@ export default function App() {
     window.addEventListener('classSettingsUpdated', handleSettingsUpdate);
     window.addEventListener('storage', handleSettingsUpdate);
     return () => {
+      isSubscribed = false;
+      if (retryTimer) clearTimeout(retryTimer);
       window.removeEventListener('classSettingsUpdated', handleSettingsUpdate);
       window.removeEventListener('storage', handleSettingsUpdate);
     };
@@ -185,9 +231,9 @@ export default function App() {
   };
 
   const handleViewLandingPage = () => {
-    fetch('/api/public/class-settings')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: PublicClassSettings | null) => {
+    adminApi
+      .getPublicClassSettings()
+      .then((data) => {
         if (data) setClassSettings(data);
       })
       .catch(() => {});

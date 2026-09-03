@@ -117,6 +117,26 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "action", "timestamp"]
+    },
+    "VisitorSession": {
+      "title": "VisitorSession",
+      "description": "Real-time visitor heartbeat and session metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "entered_at": { "type": "string" },
+        "last_seen_at": { "type": "string" },
+        "active_seconds": { "type": "number" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "referrer": { "type": "string" },
+        "current_page": { "type": "string" },
+        "ip_address": { "type": "string" },
+        "user_agent": { "type": "string" },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["id", "session_id", "entered_at", "last_seen_at"]
     }
   },
   "firestore": {
@@ -143,6 +163,10 @@
     "/analytics_events/{eventId}": {
       "schema": "AnalyticsEvent",
       "description": "Visitor interaction telemetry and conversion events"
+    },
+    "/visitor_sessions/{sessionId}": {
+      "schema": "VisitorSession",
+      "description": "Active visitor session telemetry and heartbeats"
     },
     "/audit_logs/{logId}": {
       "schema": "AuditLog",
