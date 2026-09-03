@@ -194,11 +194,37 @@ export const adminApi = {
         const raw = await safeJson<any>(res);
         return {
           className: raw.className || raw.class_name || 'Free 3-Day Canva Design Class',
+          classTitle: raw.classTitle || raw.class_title || raw.className || raw.class_name || 'Free 3-Day Canva Design Class',
+          classSubtitle: raw.classSubtitle || raw.class_subtitle || raw.subtitle || '',
+          classDescription: raw.classDescription || raw.class_description || raw.description || '',
+          subtitle: raw.subtitle || raw.classSubtitle || raw.class_subtitle || '',
+          description: raw.description || raw.classDescription || raw.class_description || '',
           classDate: raw.classDate || raw.class_date || 'Friday 5th – Sunday 7th September, 2026',
           classTime: raw.classTime || raw.class_time || '8:00 PM – 9:30 PM (WAT)',
+          classStartTime: raw.classStartTime || raw.class_start_time || raw.startTime || raw.start_time || '8:00 PM',
+          classEndTime: raw.classEndTime || raw.class_end_time || raw.endTime || raw.end_time || '9:30 PM',
+          startTime: raw.startTime || raw.start_time || '8:00 PM',
+          endTime: raw.endTime || raw.end_time || '9:30 PM',
+          timezone: raw.timezone || 'WAT (UTC+1)',
           classLink: raw.classLink || raw.class_link || 'https://meet.google.com/cda-canva-live',
           whatsappGroupLink: raw.whatsappGroupLink || raw.whatsapp_group_link || 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
           registrationStatus: raw.registrationStatus || raw.registration_status || 'OPEN',
+          registrationDeadline: raw.registrationDeadline || raw.registration_deadline || '',
+          availableSlots: raw.availableSlots || raw.available_slots || 500,
+          registeredCount: raw.registeredCount || raw.total_registered || 0,
+          totalRegistered: raw.totalRegistered || raw.total_registered || 0,
+          ctaButtonText: raw.ctaButtonText || raw.cta_button_text || 'RESERVE MY FREE SPOT',
+          ctaButtonLink: raw.ctaButtonLink || raw.cta_button_link || '#register',
+          metaPixelId: raw.metaPixelId || raw.meta_pixel_id || '',
+          meta_pixel_id: raw.meta_pixel_id || raw.metaPixelId || '',
+          class_name: raw.class_name || raw.className,
+          class_date: raw.class_date || raw.classDate,
+          class_time: raw.class_time || raw.classTime,
+          class_link: raw.class_link || raw.classLink,
+          whatsapp_group_link: raw.whatsapp_group_link || raw.whatsappGroupLink,
+          registration_status: raw.registration_status || raw.registrationStatus || 'OPEN',
+          cta_button_text: raw.cta_button_text || raw.ctaButtonText || 'RESERVE MY FREE SPOT',
+          cta_button_link: raw.cta_button_link || raw.ctaButtonLink || '#register',
           automationEnabled: raw.automationEnabled ?? raw.automation_enabled ?? true,
           founderImageUrl: raw.founderImageUrl || raw.founder_image_url || '',
           countdownTargetDate: raw.countdownTargetDate || raw.countdown_target_date || '2026-09-05T20:00:00',
@@ -214,11 +240,37 @@ export const adminApi = {
       if (fsSettings) {
         return {
           className: fsSettings.class_name || 'Free 3-Day Canva Design Class',
+          classTitle: fsSettings.class_title || fsSettings.class_name || 'Free 3-Day Canva Design Class',
+          classSubtitle: fsSettings.class_subtitle || fsSettings.subtitle || '',
+          classDescription: fsSettings.class_description || fsSettings.description || '',
+          subtitle: fsSettings.subtitle || fsSettings.class_subtitle || '',
+          description: fsSettings.description || fsSettings.class_description || '',
           classDate: fsSettings.class_date || 'Friday 5th – Sunday 7th September, 2026',
           classTime: fsSettings.class_time || '8:00 PM – 9:30 PM (WAT)',
+          classStartTime: fsSettings.class_start_time || fsSettings.start_time || '8:00 PM',
+          classEndTime: fsSettings.class_end_time || fsSettings.end_time || '9:30 PM',
+          startTime: fsSettings.start_time || '8:00 PM',
+          endTime: fsSettings.end_time || '9:30 PM',
+          timezone: fsSettings.timezone || 'WAT (UTC+1)',
           classLink: fsSettings.class_link || 'https://meet.google.com/cda-canva-live',
           whatsappGroupLink: fsSettings.whatsapp_group_link || 'https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y',
           registrationStatus: fsSettings.registration_status || 'OPEN',
+          registrationDeadline: fsSettings.registration_deadline || '',
+          availableSlots: fsSettings.available_slots || 500,
+          registeredCount: fsSettings.total_registered || 0,
+          totalRegistered: fsSettings.total_registered || 0,
+          ctaButtonText: fsSettings.cta_button_text || 'RESERVE MY FREE SPOT',
+          ctaButtonLink: fsSettings.cta_button_link || '#register',
+          metaPixelId: fsSettings.meta_pixel_id || '',
+          meta_pixel_id: fsSettings.meta_pixel_id || '',
+          class_name: fsSettings.class_name,
+          class_date: fsSettings.class_date,
+          class_time: fsSettings.class_time,
+          class_link: fsSettings.class_link,
+          whatsapp_group_link: fsSettings.whatsapp_group_link,
+          registration_status: fsSettings.registration_status || 'OPEN',
+          cta_button_text: fsSettings.cta_button_text || 'RESERVE MY FREE SPOT',
+          cta_button_link: fsSettings.cta_button_link || '#register',
           automationEnabled: fsSettings.automation_enabled ?? true,
           founderImageUrl: fsSettings.founder_image_url || '',
           countdownTargetDate: fsSettings.countdown_target_date || '2026-09-05T20:00:00',
@@ -238,6 +290,10 @@ export const adminApi = {
       automationEnabled: true,
       founderImageUrl: '',
       countdownTargetDate: '2026-09-05T20:00:00',
+      metaPixelId: '',
+      meta_pixel_id: '',
+      ctaButtonText: 'RESERVE MY FREE SPOT',
+      ctaButtonLink: '#register',
     };
   },
 
@@ -798,14 +854,16 @@ export const adminApi = {
         full_name: payload.fullName,
         email: payload.email.toLowerCase(),
         whatsapp: payload.whatsappNumber,
-        device: payload.device || 'Smartphone',
-        canva_experience: payload.canvaExperience || 'Beginner',
+        device: (payload.device as any) || 'Smartphone',
+        canva_experience: (payload.canvaExperience as any) || 'Beginner',
         learning_interest: payload.learningInterest || 'Everything',
         registration_date: now.toISOString().split('T')[0],
         registration_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         utm_source: 'Admin Manual Entry',
         utm_medium: 'admin',
         utm_campaign: 'Manual Registration',
+        utm_content: '',
+        utm_term: '',
         status: (payload.status as any) || 'REGISTERED',
         whatsapp_joined: payload.status === 'WHATSAPP JOINED',
         attendance_day_1: false,
@@ -887,46 +945,5 @@ export const adminApi = {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  },
-
-  async getPublicClassSettings(): Promise<PublicClassSettings | null> {
-    try {
-      const res = await fetch('/api/public/class-settings');
-      if (res.ok) {
-        return await safeJson<PublicClassSettings>(res);
-      }
-    } catch {
-      // fallback
-    }
-
-    const fsSettings = await getFirestoreClassSettings();
-    if (fsSettings) {
-      return {
-        className: fsSettings.class_name,
-        classTitle: fsSettings.class_title || fsSettings.class_name,
-        classSubtitle: fsSettings.class_subtitle || fsSettings.subtitle || '',
-        classDescription: fsSettings.class_description || fsSettings.description || '',
-        classDate: fsSettings.class_date,
-        classTime: fsSettings.class_time,
-        classStartTime: fsSettings.class_start_time || fsSettings.start_time || '8:00 PM',
-        classEndTime: fsSettings.class_end_time || fsSettings.end_time || '9:30 PM',
-        timezone: fsSettings.timezone || 'WAT (UTC+1)',
-        classLink: fsSettings.class_link,
-        whatsappGroupLink: fsSettings.whatsapp_group_link,
-        registrationStatus: fsSettings.registration_status,
-        registrationDeadline: fsSettings.registration_deadline || '',
-        availableSlots: fsSettings.available_slots || 500,
-        registeredCount: fsSettings.total_registered || 0,
-        ctaButtonText: fsSettings.cta_button_text || 'RESERVE MY FREE SPOT',
-        ctaButtonLink: fsSettings.cta_button_link || '#register',
-        automationEnabled: fsSettings.automation_enabled,
-        founderImageUrl: fsSettings.founder_image_url || '',
-        countdownTargetDate: fsSettings.countdown_target_date || '',
-        metaPixelId: fsSettings.meta_pixel_id || '',
-        updatedAt: fsSettings.updated_at,
-      };
-    }
-
-    return null;
   },
 };

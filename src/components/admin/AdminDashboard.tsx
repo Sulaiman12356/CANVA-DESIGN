@@ -158,8 +158,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       analytics: '/admin/analytics',
       class_settings: '/admin/settings',
       whatsapp: '/admin/whatsapp',
-      audit_logs: '/admin/audit',
-      admin_settings: '/admin/account',
+      activity_log: '/admin/audit',
+      settings: '/admin/account',
       send_email: '/admin/dashboard',
     };
     const targetPath = pathMap[tab];

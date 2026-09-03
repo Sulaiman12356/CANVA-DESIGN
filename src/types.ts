@@ -241,6 +241,18 @@ export interface PublicClassSettings {
   ctaButtonText?: string;
   ctaButtonLink?: string;
   metaPixelId?: string;
+  meta_pixel_id?: string;
+  class_name?: string;
+  class_title?: string;
+  class_subtitle?: string;
+  class_description?: string;
+  class_date?: string;
+  class_time?: string;
+  class_link?: string;
+  whatsapp_group_link?: string;
+  registration_status?: 'OPEN' | 'CLOSED';
+  cta_button_text?: string;
+  cta_button_link?: string;
   automationEnabled: boolean;
   founderImageUrl?: string;
   countdownTargetDate?: string;
