@@ -392,7 +392,7 @@ const INITIAL_SETTINGS: ClassSettingsRecord = {
   cta_button_text: 'RESERVE MY FREE SPOT',
   cta_button_link: '#register',
   countdown_target_date: '2026-09-05T20:00:00',
-  meta_pixel_id: '',
+  meta_pixel_id: '1065001129595286',
   automation_enabled: true,
   automation_template_id: 'tmpl_reg_confirmation',
   updated_at: new Date().toISOString(),

@@ -55,7 +55,7 @@ const firedEventIds = new Set<string>();
  */
 export function getActiveMetaPixelId(): string {
   const customOverride = safeGetItem('cda_meta_pixel_id');
-  if (customOverride && customOverride.trim() !== '') {
+  if (customOverride && customOverride.trim() !== '' && !customOverride.includes('INSERT')) {
     return customOverride.trim();
   }
 
@@ -64,7 +64,7 @@ export function getActiveMetaPixelId(): string {
   if (cachedSettings) {
     try {
       const parsed = JSON.parse(cachedSettings);
-      if (parsed?.meta_pixel_id && typeof parsed.meta_pixel_id === 'string' && parsed.meta_pixel_id.trim() !== '') {
+      if (parsed?.meta_pixel_id && typeof parsed.meta_pixel_id === 'string' && parsed.meta_pixel_id.trim() !== '' && !parsed.meta_pixel_id.includes('INSERT')) {
         return parsed.meta_pixel_id.trim();
       }
     } catch {
@@ -77,7 +77,11 @@ export function getActiveMetaPixelId(): string {
     return envId.trim();
   }
 
-  return SITE_CONFIG.META_PIXEL_ID || '[INSERT META PIXEL ID]';
+  if (SITE_CONFIG.META_PIXEL_ID && !SITE_CONFIG.META_PIXEL_ID.includes('INSERT')) {
+    return SITE_CONFIG.META_PIXEL_ID.trim();
+  }
+
+  return '1065001129595286';
 }
 
 /**

@@ -55,7 +55,7 @@ export const SITE_CONFIG: AcademyConfig = {
   // If left empty (""), registrations are saved securely in local browser storage and display the WhatsApp confirmation directly!
   REGISTRATION_ENDPOINT: "",
   // Meta Pixel ID for Facebook & Instagram Ads Tracking (configured here, via .env, or in Admin Settings):
-  META_PIXEL_ID: "[INSERT META PIXEL ID]",
+  META_PIXEL_ID: "1065001129595286",
   // Real photograph of Onifade Sulaiman (Mr. Clarity):
   MENTOR_IMAGE: "/sulaiman.jpg",
   EMAIL: "ipesolasulaiman@gmail.com",
