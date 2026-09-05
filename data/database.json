@@ -1,6 +1,36 @@
 {
   "participants": [
     {
+      "id": "part_1788576318475_h44nt",
+      "full_name": "Canva Student",
+      "email": "student.new@clarityacademy.com",
+      "whatsapp": "08051780169",
+      "device": "Smartphone",
+      "canva_experience": "Beginner",
+      "learning_interest": "Everything",
+      "registration_date": "2026-09-05",
+      "registration_time": "02:45:18",
+      "utm_source": "Direct",
+      "utm_medium": "none",
+      "utm_campaign": "Canva Free Class",
+      "utm_content": "",
+      "utm_term": "",
+      "status": "REGISTERED",
+      "whatsapp_joined": false,
+      "attendance_day_1": false,
+      "attendance_day_2": false,
+      "attendance_day_3": false,
+      "masterclass_interest": false,
+      "email_status": "sent",
+      "admin_notes": "",
+      "ticket_number": "CDA-2026-2958",
+      "created_at": "2026-09-05T02:45:18.475Z",
+      "updated_at": "2026-09-05T02:45:18.492Z",
+      "last_email_sent": "2026-09-05T02:45:18.492Z",
+      "email_attempts": 1,
+      "email_error": ""
+    },
+    {
       "updated_at": "2026-09-05T01:01:25.477Z",
       "email": "amina.bello.demo2026@gmail.com",
       "whatsapp": "08031234567",
@@ -514,6 +544,19 @@
       "user_agent": "curl/7.88.1",
       "details": "Canva Student (student.new@clarityacademy.com) Ticket #CDA-2026-2958",
       "timestamp": "2026-09-05T02:45:18.476Z"
+    },
+    {
+      "id": "ev_1788576372381_famo",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/#the-problem",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.64.64",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-05T02:46:12.381Z"
     }
   ],
   "visitor_sessions": [
@@ -521,7 +564,7 @@
       "id": "sess_1788565497019_52wa",
       "session_id": "sess_1788544247635_omt2qiq",
       "entered_at": "2026-09-04T23:44:57.019Z",
-      "last_seen_at": "2026-09-05T02:45:17.999Z",
+      "last_seen_at": "2026-09-05T03:28:29.387Z",
       "active_seconds": 20,
       "device": "Desktop",
       "browser": "Chrome",

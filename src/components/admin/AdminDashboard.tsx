@@ -23,6 +23,11 @@ import {
   ParticipantStatus,
 } from '../../types';
 import { adminApi } from '../../utils/adminApi';
+import {
+  subscribeToParticipants,
+  subscribeToAuditLogs,
+  subscribeToClassSettings,
+} from '../../lib/firebase';
 
 interface AdminDashboardProps {
   initialTab?: AdminTab;
@@ -123,14 +128,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     fetchCoreData();
-    // Auto-refresh live participants every 10 seconds.
-    // Only poll core settings when not actively on the class settings tab so user modifications are never overwritten.
+    fetchParticipants();
+
+    // 1. Subscribe to live participant updates from Firestore (instant update on new registrations)
+    const unsubParticipants = subscribeToParticipants((liveList) => {
+      // If user is on page 1 with no search filter, keep participants table live-synced
+      if (searchQuery.trim() === '' && selectedStatus === 'All' && currentPage === 1) {
+        setParticipants(liveList.slice(0, pageSize));
+        setTotalCount(liveList.length);
+      }
+      // Live sync stats counters
+      setStats((prev: any) => {
+        const total = liveList.length;
+        const joined = liveList.filter((p) => p.whatsapp_joined).length;
+        const attended = liveList.filter((p) => p.attendance_day_1 || p.attendance_day_2 || p.attendance_day_3).length;
+        return {
+          ...(prev || {}),
+          totalRegistrations: total,
+          joinedWhatsApp: joined,
+          attendedLive: attended,
+        };
+      });
+    });
+
+    // 2. Subscribe to live audit logs from Firestore
+    const unsubLogs = subscribeToAuditLogs((liveLogs) => {
+      setAuditLogs(liveLogs.slice(0, 50));
+    });
+
+    // 3. Subscribe to live class settings
+    const unsubSettings = subscribeToClassSettings((liveSettings) => {
+      if (currentTab !== 'class_settings' && currentTab !== 'settings') {
+        setClassSettings((prev) => ({ ...(prev || {}), ...liveSettings }));
+      }
+    });
+
     const interval = setInterval(() => {
       if (currentTab !== 'class_settings' && currentTab !== 'settings') {
         fetchCoreData();
       }
       fetchParticipants();
-    }, 10000);
+    }, 15000);
 
     const handleFocus = () => {
       if (currentTab !== 'class_settings' && currentTab !== 'settings') {
@@ -142,9 +180,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     window.addEventListener('focus', handleFocus);
     return () => {
       clearInterval(interval);
+      unsubParticipants();
+      unsubLogs();
+      unsubSettings();
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchCoreData, fetchParticipants, currentTab]);
+  }, [fetchCoreData, fetchParticipants, currentTab, searchQuery, selectedStatus, currentPage, pageSize]);
 
   // Handle Tab Switch (Special cases like 'send_email')
   const handleSelectTab = (tab: AdminTab) => {

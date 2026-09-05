@@ -1,39 +1,121 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Admin authentication and accounts
-    match /admin_users/{document=**} {
-      allow read, write: if true;
+    // -------------------------------------------------------------
+    // GLOBAL SECURITY HELPERS
+    // -------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
     }
-    match /admin_account/{document=**} {
-      allow read, write: if true;
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ['ipesolasulaiman@gmail.com', 'onifadesulaiman@gmail.com'] ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*@clarity\\.edu$')) ||
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid))
+      );
     }
-    // Workshop configuration and settings
-    match /class_settings/{document=**} {
-      allow read, write: if true;
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
-    // Student registrations
-    match /participants/{document=**} {
-      allow read, write: if true;
+
+    function incoming() {
+      return request.resource.data;
     }
-    // Visitor telemetry and live sessions
-    match /analytics_events/{document=**} {
-      allow read, write: if true;
+
+    function existing() {
+      return resource.data;
     }
-    match /visitor_sessions/{document=**} {
-      allow read, write: if true;
+
+    // -------------------------------------------------------------
+    // ENTITY VALIDATION HELPERS
+    // -------------------------------------------------------------
+    function isValidParticipant(data) {
+      return data.keys().hasAll(['id', 'full_name', 'email', 'whatsapp', 'ticket_number'])
+        && data.id is string && isValidId(data.id)
+        && data.full_name is string && data.full_name.size() >= 2 && data.full_name.size() <= 100
+        && data.email is string && data.email.size() >= 5 && data.email.size() <= 150
+        && data.whatsapp is string && data.whatsapp.size() >= 5 && data.whatsapp.size() <= 30
+        && data.ticket_number is string && data.ticket_number.size() <= 50;
     }
-    // Audit logs and email templates
-    match /audit_logs/{document=**} {
-      allow read, write: if true;
+
+    function isValidClassSettings(data) {
+      return data.keys().hasAll(['class_name', 'class_date', 'whatsapp_group_link'])
+        && data.class_name is string && data.class_name.size() <= 200
+        && data.class_date is string && data.class_date.size() <= 100
+        && data.whatsapp_group_link is string && data.whatsapp_group_link.size() <= 250;
     }
-    match /email_templates/{document=**} {
-      allow read, write: if true;
+
+    // -------------------------------------------------------------
+    // COLLECTION MATCH RULES
+    // -------------------------------------------------------------
+
+    // 1. Class Settings (Public read for landing page, admin write)
+    match /class_settings/{settingId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidClassSettings(incoming());
+      allow delete: if isAdmin();
     }
-    
-    // Default fallback
+
+    // 2. Student Registrations (Public create with strict schema; admin read/update/delete)
+    match /participants/{participantId} {
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == participantId);
+      allow list: if isAdmin();
+      allow create: if isValidId(participantId) && isValidParticipant(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 3. Admin User Accounts & Profiles
+    match /admin_users/{userId} {
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    // 4. Master Admin Account Credential Store
+    match /admin_account/{accountId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 5. Automated Email Templates
+    match /email_templates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 6. Analytics Events Telemetry
+    match /analytics_events/{eventId} {
+      allow create: if isValidId(eventId)
+        && incoming().keys().hasAll(['id', 'event', 'timestamp'])
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().event is string && incoming().event.size() <= 100
+        && incoming().timestamp is string && incoming().timestamp.size() <= 50;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // 7. Visitor Telemetry Sessions & Heartbeats
+    match /visitor_sessions/{sessionId} {
+      allow create, update: if isValidId(sessionId)
+        && incoming().keys().hasAll(['id', 'session_id'])
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().session_id is string && incoming().session_id.size() <= 128;
+      allow read, delete: if isAdmin();
+    }
+
+    // 8. Immutable Administrative Audit Logs
+    match /audit_logs/{logId} {
+      allow create: if isValidId(logId)
+        && (isAdmin() || (incoming().keys().hasAll(['id', 'action', 'timestamp']) && incoming().id is string && incoming().action is string));
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------------
+    // DEFAULT CATCH-ALL SAFETY NET (Deny all unspecified)
+    // -------------------------------------------------------------
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

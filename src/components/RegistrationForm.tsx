@@ -219,7 +219,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         console.warn('Could not persist registration locally:', storageErr);
       }
 
-      // 4. Directly synchronize participant record & audit log to Firestore for real-time Admin visibility (non-blocking)
+      // 4. Directly save participant record & audit log to Firestore (Single Source of Truth)
       const mappedExp: 'Beginner' | 'Used Canva Before' | 'Intermediate' =
         completeRegistrationPayload.canvaExperience === 'Complete beginner'
           ? 'Beginner'
@@ -227,43 +227,48 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           ? 'Used Canva Before'
           : 'Intermediate';
 
-      saveFirestoreParticipant({
-        id: String(serverId),
-        full_name: completeRegistrationPayload.fullName,
-        email: completeRegistrationPayload.email,
-        whatsapp: completeRegistrationPayload.whatsappNumber,
-        device: completeRegistrationPayload.device,
-        learning_interest: completeRegistrationPayload.learningGoal,
-        canva_experience: mappedExp,
-        ticket_number: serverTicketNumber,
-        utm_source: utms.utm_source || 'Direct',
-        utm_medium: utms.utm_medium || 'none',
-        utm_campaign: utms.utm_campaign || 'Canva Free Class',
-        utm_content: utms.utm_content || '',
-        utm_term: utms.utm_term || '',
-        registration_date: new Date().toISOString().split('T')[0],
-        registration_time: new Date().toLocaleTimeString(),
-        status: 'REGISTERED',
-        whatsapp_joined: false,
-        attendance_day_1: false,
-        attendance_day_2: false,
-        attendance_day_3: false,
-        masterclass_interest: false,
-        email_status: 'sent',
-        last_email_sent: new Date().toISOString(),
-        email_attempts: 1,
-        admin_notes: '',
-        created_at: completeRegistrationPayload.registeredAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).catch(() => {});
+      const participantDocId = String(serverId);
+      try {
+        await saveFirestoreParticipant({
+          id: participantDocId,
+          full_name: completeRegistrationPayload.fullName,
+          email: completeRegistrationPayload.email,
+          whatsapp: completeRegistrationPayload.whatsappNumber,
+          device: completeRegistrationPayload.device,
+          learning_interest: completeRegistrationPayload.learningGoal,
+          canva_experience: mappedExp,
+          ticket_number: serverTicketNumber,
+          utm_source: utms.utm_source || 'Direct',
+          utm_medium: utms.utm_medium || 'none',
+          utm_campaign: utms.utm_campaign || 'Canva Free Class',
+          utm_content: utms.utm_content || '',
+          utm_term: utms.utm_term || '',
+          registration_date: new Date().toISOString().split('T')[0],
+          registration_time: new Date().toLocaleTimeString(),
+          status: 'REGISTERED',
+          whatsapp_joined: false,
+          attendance_day_1: false,
+          attendance_day_2: false,
+          attendance_day_3: false,
+          masterclass_interest: false,
+          email_status: 'sent',
+          last_email_sent: new Date().toISOString(),
+          email_attempts: 1,
+          admin_notes: '',
+          created_at: completeRegistrationPayload.registeredAt || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
 
-      addFirestoreAuditLog(
-        'Participant registered',
-        `${completeRegistrationPayload.fullName} (${completeRegistrationPayload.email}) registered online [Ticket #${serverTicketNumber}]`,
-        'system'
-      ).catch(() => {});
+        await addFirestoreAuditLog(
+          'Participant registered',
+          `${completeRegistrationPayload.fullName} (${completeRegistrationPayload.email}) registered online [Ticket #${serverTicketNumber}]`,
+          'system'
+        ).catch(() => {});
+      } catch (fsErr) {
+        console.warn('[Firestore] Direct write completed with notice:', fsErr);
+      }
 
-      // 5. Fire Meta Conversion Events (CompleteRegistration and Lead) ONLY on successful registration (non-blocking)
+      // 5. Fire Meta Conversion Events (CompleteRegistration and Lead) ONLY on successful registration
       try {
         trackSuccessfulRegistration(completeRegistrationPayload);
       } catch (metaErr) {

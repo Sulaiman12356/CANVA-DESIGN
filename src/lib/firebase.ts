@@ -275,6 +275,85 @@ export async function addFirestoreAuditLog(
   }
 }
 
+// -------------------------------------------------------------
+// REAL-TIME FIRESTORE SUBSCRIPTIONS
+// -------------------------------------------------------------
+
+/**
+ * Subscribes to live class settings updates from Firestore.
+ * Automatically receives new class dates, countdown timers, registration status, WhatsApp links, etc.
+ */
+export function subscribeToClassSettings(callback: (settings: ClassSettings) => void): () => void {
+  try {
+    const docRef = doc(db, 'class_settings', 'current');
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as ClassSettings;
+        callback(data);
+      }
+    }, (error) => {
+      console.warn('Class settings live subscription notice:', error?.message || error);
+    });
+    return unsub;
+  } catch (err) {
+    console.warn('Could not establish real-time settings subscription:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Subscribes to live participant list and count updates from Firestore.
+ * Immediately triggers when new students register or records change.
+ */
+export function subscribeToParticipants(callback: (participants: Participant[]) => void): () => void {
+  try {
+    const colRef = collection(db, 'participants');
+    const unsub = onSnapshot(colRef, (snap) => {
+      const list: Participant[] = [];
+      snap.forEach((d) => {
+        list.push(d.data() as Participant);
+      });
+      // Sort descending by registration / creation time
+      list.sort((a, b) => {
+        const timeA = new Date(a.created_at || a.registration_date || 0).getTime();
+        const timeB = new Date(b.created_at || b.registration_date || 0).getTime();
+        return timeB - timeA;
+      });
+      callback(list);
+    }, (error) => {
+      console.warn('Participants live subscription notice:', error?.message || error);
+    });
+    return unsub;
+  } catch (err) {
+    console.warn('Could not establish real-time participants subscription:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Subscribes to live administrative audit logs from Firestore.
+ */
+export function subscribeToAuditLogs(callback: (logs: AuditLog[]) => void): () => void {
+  try {
+    const colRef = collection(db, 'audit_logs');
+    const unsub = onSnapshot(colRef, (snap) => {
+      const list: AuditLog[] = [];
+      snap.forEach((d) => {
+        list.push(d.data() as AuditLog);
+      });
+      list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+      callback(list);
+    }, (error) => {
+      console.warn('Audit logs live subscription notice:', error?.message || error);
+    });
+    return unsub;
+  } catch (err) {
+    console.warn('Could not establish real-time audit logs subscription:', err);
+    return () => {};
+  }
+}
+
+
 // 6. Firebase Email & Password Authentication
 export async function signInAdminWithEmailPassword(
   email: string,

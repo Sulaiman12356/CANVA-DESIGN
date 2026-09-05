@@ -25,6 +25,7 @@ import { initMetaPixel, trackPageView } from './utils/metaPixel';
 import { safeGetItem, safeSetItem } from './utils/storage';
 import { adminApi, clearAdminToken } from './utils/adminApi';
 import { useSessionHeartbeat } from './utils/useSessionHeartbeat';
+import { subscribeToClassSettings, subscribeToParticipants } from './lib/firebase';
 
 export type AppRoute = 'home' | 'thank-you' | 'admin-login' | 'admin-dashboard';
 
@@ -78,7 +79,7 @@ export default function App() {
   // Activate Real-Time Visitor Heartbeat Telemetry
   useSessionHeartbeat();
 
-  // Load public class settings from backend with resilient retry and fallback
+  // Load public class settings from backend with real-time Firestore synchronization
   useEffect(() => {
     let isSubscribed = true;
     let retryTimer: any = null;
@@ -87,7 +88,10 @@ export default function App() {
       try {
         const data = await adminApi.getPublicClassSettings();
         if (data && isSubscribed) {
-          setClassSettings(data);
+          setClassSettings((prev) => ({
+            ...(prev || {}),
+            ...data,
+          }));
           const pixelId = data.meta_pixel_id || (data as any).metaPixelId;
           if (pixelId) {
             safeSetItem('cda_meta_pixel_id', pixelId);
@@ -105,6 +109,43 @@ export default function App() {
 
     loadSettings();
 
+    // 1. Real-time listener for class settings changes (title, date, slots, WhatsApp link, status, etc.)
+    const unsubSettings = subscribeToClassSettings((liveSettings) => {
+      if (!isSubscribed) return;
+      setClassSettings((prev) => {
+        const merged: any = {
+          ...(prev || {}),
+          ...liveSettings,
+          className: liveSettings.class_name || (prev as any)?.className || 'Free 3-Day Canva Design Class',
+          classTitle: liveSettings.class_title || liveSettings.class_name || (prev as any)?.classTitle || 'Free 3-Day Canva Design Class',
+          classSubtitle: liveSettings.subtitle || (prev as any)?.classSubtitle || '',
+          classDescription: liveSettings.description || (prev as any)?.classDescription || '',
+          classDate: liveSettings.class_date || (prev as any)?.classDate || 'March 27th - 29th, 2026',
+          classTime: liveSettings.class_time || (prev as any)?.classTime || '8:00 PM – 9:30 PM (WAT)',
+          classLink: liveSettings.class_link || (prev as any)?.classLink || 'https://meet.google.com/cda-canva-live',
+          whatsappGroupLink: liveSettings.whatsapp_group_link || (prev as any)?.whatsappGroupLink || '',
+          registrationStatus: liveSettings.registration_status || (prev as any)?.registrationStatus || 'OPEN',
+          countdownTargetDate: liveSettings.countdown_target_date || (prev as any)?.countdownTargetDate || '2026-03-27T20:00:00',
+          metaPixelId: liveSettings.meta_pixel_id || (prev as any)?.metaPixelId || '',
+          ctaButtonText: liveSettings.cta_button_text || (prev as any)?.ctaButtonText || 'RESERVE MY FREE SPOT',
+          ctaButtonLink: liveSettings.cta_button_link || (prev as any)?.ctaButtonLink || '#register',
+        };
+        return merged;
+      });
+
+      if (liveSettings.meta_pixel_id) {
+        safeSetItem('cda_meta_pixel_id', liveSettings.meta_pixel_id);
+        initMetaPixel();
+      }
+    });
+
+    // 2. Real-time listener for live participant count
+    const unsubParticipants = subscribeToParticipants((liveParticipants) => {
+      if (!isSubscribed) return;
+      const count = liveParticipants.length;
+      setClassSettings((prev) => (prev ? { ...prev, total_registered: count, totalRegistered: count } : prev));
+    });
+
     const handleSettingsUpdate = () => {
       loadSettings();
     };
@@ -114,6 +155,8 @@ export default function App() {
     return () => {
       isSubscribed = false;
       if (retryTimer) clearTimeout(retryTimer);
+      unsubSettings();
+      unsubParticipants();
       window.removeEventListener('classSettingsUpdated', handleSettingsUpdate);
       window.removeEventListener('storage', handleSettingsUpdate);
     };
