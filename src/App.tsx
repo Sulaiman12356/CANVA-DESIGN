@@ -309,6 +309,7 @@ export default function App() {
         <ThankYouPage
           onNavigateHome={() => navigateTo('home')}
           registeredStudent={registeredStudent}
+          classSettings={classSettings}
         />
         <PrivacyPolicyModal
           isOpen={isPrivacyOpen}

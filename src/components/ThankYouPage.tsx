@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../config';
-import { RegistrationFormData } from '../types';
+import { RegistrationFormData, PublicClassSettings } from '../types';
 import { safeGetItem, safeJsonParse } from '../utils/storage';
 import { MentorPortrait } from './MentorPortrait';
 import { trackWhatsAppClick } from '../utils/metaPixel';
@@ -34,11 +34,13 @@ import {
 interface ThankYouPageProps {
   onNavigateHome?: () => void;
   registeredStudent?: RegistrationFormData | null;
+  classSettings?: PublicClassSettings | null;
 }
 
 export const ThankYouPage: React.FC<ThankYouPageProps> = ({
   onNavigateHome,
   registeredStudent: propStudent,
+  classSettings,
 }) => {
   const [student, setStudent] = useState<RegistrationFormData | null>(propStudent || null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -46,12 +48,34 @@ export const ThankYouPage: React.FC<ThankYouPageProps> = ({
   const [ticketId, setTicketId] = useState<string>('');
   const [vcfDownloaded, setVcfDownloaded] = useState(false);
 
+  // Sync prop student if it changes
   useEffect(() => {
-    // Scroll to top when thank you page renders
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (propStudent) {
+      setStudent(propStudent);
+      if (propStudent.ticketNumber) {
+        setTicketId(propStudent.ticketNumber);
+      }
+    }
+  }, [propStudent]);
+
+  useEffect(() => {
+    // Immediate scroll to top when thank you page renders
+    window.scrollTo({ top: 0, behavior: 'instant' as any });
 
     if (!student) {
       try {
+        // Priority 1: Check the latest registered student explicitly stored upon registration
+        const latestRaw = safeGetItem('cda_latest_registered_student', '');
+        if (latestRaw) {
+          const parsedLatest = safeJsonParse<RegistrationFormData | null>(latestRaw, null);
+          if (parsedLatest && parsedLatest.fullName) {
+            setStudent(parsedLatest);
+            setTicketId(parsedLatest.ticketNumber || `CDA-${Math.floor(100000 + Math.random() * 900000)}`);
+            return;
+          }
+        }
+
+        // Priority 2: Check the registration history list
         const raw = safeGetItem('cda_canva_registrations', '[]');
         const parsed = safeJsonParse<RegistrationFormData[]>(raw, []);
         const list: RegistrationFormData[] = Array.isArray(parsed) ? parsed : [];
@@ -70,6 +94,11 @@ export const ThankYouPage: React.FC<ThankYouPageProps> = ({
     }
   }, [student]);
 
+  const effectiveWhatsAppGroupLink =
+    classSettings?.whatsapp_group_link ||
+    classSettings?.whatsappGroupLink ||
+    SITE_CONFIG.WHATSAPP_GROUP_LINK;
+
   const studentName = student?.fullName || 'Student';
   const effectiveTicket = ticketId || student?.ticketNumber || 'CDA-2026';
 
@@ -78,7 +107,7 @@ export const ThankYouPage: React.FC<ThankYouPageProps> = ({
   const whatsappDmUrl = `https://wa.me/2348051780169?text=${encodeURIComponent(automatedWhatsAppMessage)}`;
 
   const handleCopyGroupLink = () => {
-    navigator.clipboard.writeText(SITE_CONFIG.WHATSAPP_GROUP_LINK);
+    navigator.clipboard.writeText(effectiveWhatsAppGroupLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };
@@ -217,6 +246,35 @@ END:VCALENDAR`;
             </span>
           </div>
 
+          {/* Immediate Action: Prominent Instant Join WhatsApp Group Banner */}
+          <div className="mt-6 max-w-xl mx-auto p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white shadow-xl shadow-emerald-900/25 border-2 border-emerald-400 text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/90 text-emerald-200 text-xs font-black uppercase tracking-wider border border-emerald-400/40">
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+              <span>Mandatory Final Step</span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                Join the WhatsApp Class Group Now
+              </h3>
+              <p className="text-xs sm:text-sm text-emerald-100 font-medium">
+                Live Google Meet links, Canva template access, and homework critiques are shared exclusively in the WhatsApp group.
+              </p>
+            </div>
+
+            <a
+              href={effectiveWhatsAppGroupLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackWhatsAppClick('Thank You Page Top Hero Card', 'group')}
+              className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-black text-base sm:text-lg rounded-xl transition-all shadow-xl shadow-emerald-950/30 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <Users className="w-6 h-6 shrink-0" />
+              <span>CLICK HERE TO JOIN WHATSAPP GROUP</span>
+              <ArrowRight className="w-5 h-5 shrink-0" />
+            </a>
+          </div>
+
           {/* Registration Summary Box */}
           {student && (
             <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 max-w-lg mx-auto text-left">
@@ -288,7 +346,7 @@ END:VCALENDAR`;
               {/* Action Button & Copy Link */}
               <div className="w-full md:w-auto shrink-0 flex flex-col gap-3">
                 <a
-                  href={SITE_CONFIG.WHATSAPP_GROUP_LINK}
+                  href={effectiveWhatsAppGroupLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackWhatsAppClick('Thank You Page - Admission Pass Button', 'group')}

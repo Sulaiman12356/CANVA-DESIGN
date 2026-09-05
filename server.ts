@@ -233,13 +233,28 @@ app.post('/api/register', async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check duplicate
+    // Check if already registered - allow returning participants to access their pass and WhatsApp group seamlessly
     const existing = db.getParticipantByEmail(normalizedEmail);
     if (existing) {
-      return res.status(409).json({
-        error: 'This email address is already registered for the Canva class.',
-        participant: existing,
+      const updatedExisting: ParticipantRecord = {
+        ...existing,
+        full_name: fullName.trim() || existing.full_name,
+        whatsapp: whatsappNumber.trim() || existing.whatsapp,
+        device: (device as any) || existing.device,
+        canva_experience: (canvaExperience as any) || existing.canva_experience,
+        learning_interest: learningInterest || existing.learning_interest,
+        updated_at: new Date().toISOString(),
+      };
+      db.updateParticipant(existing.id, updatedExisting);
+
+      return res.status(200).json({
+        success: true,
+        alreadyRegistered: true,
+        message: 'Welcome back! Your registration is already confirmed.',
+        participant: updatedExisting,
         ticketNumber: existing.ticket_number,
+        whatsappGroupLink: settings.whatsapp_group_link,
+        automationStatus: settings.automation_enabled ? 'ACTIVE' : 'INACTIVE',
       });
     }
 
