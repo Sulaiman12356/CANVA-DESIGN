@@ -35,25 +35,25 @@ export const CanvaWorkspaceVisual: React.FC = () => {
       <div className="bg-slate-900 text-white rounded-3xl p-3 sm:p-5 border border-slate-800 shadow-2xl shadow-blue-950/40 relative overflow-hidden">
         
         {/* Workspace Top Toolbar */}
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800 text-xs text-slate-300">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800 text-xs text-slate-300">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
               <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
               <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
             </div>
-            <div className="hidden sm:flex items-center gap-1 ml-2 px-2.5 py-1 bg-slate-800/80 rounded-md border border-slate-700/50">
+            <div className="flex items-center gap-1 ml-1 sm:ml-2 px-2 sm:px-2.5 py-1 bg-slate-800/80 rounded-md border border-slate-700/50">
               <span className="font-semibold text-sky-400">Canva</span>
               <span className="text-slate-500">•</span>
-              <span className="text-slate-300 text-[11px]">Design Workspace</span>
+              <span className="text-slate-300 text-[11px]">Workspace</span>
             </div>
           </div>
 
           {/* Interactive Project Switcher */}
-          <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 overflow-x-auto">
             <button
               onClick={() => setActiveTab('flyer')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 activeTab === 'flyer'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -63,7 +63,7 @@ export const CanvaWorkspaceVisual: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('social')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 activeTab === 'social'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -73,7 +73,7 @@ export const CanvaWorkspaceVisual: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('logo')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 activeTab === 'logo'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -81,6 +81,30 @@ export const CanvaWorkspaceVisual: React.FC = () => {
             >
               Brand Logo
             </button>
+          </div>
+        </div>
+
+        {/* Mobile Tools Quick Strip */}
+        <div className="flex sm:hidden items-center justify-between gap-1 overflow-x-auto pb-1 mb-3 text-[10px] text-slate-300 scrollbar-none">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 whitespace-nowrap">
+            <Layout className="w-3 h-3 text-blue-400 shrink-0" />
+            <span>Templates</span>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 whitespace-nowrap">
+            <Shapes className="w-3 h-3 text-amber-400 shrink-0" />
+            <span>Elements</span>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 whitespace-nowrap">
+            <Type className="w-3 h-3 text-emerald-400 shrink-0" />
+            <span>Fonts</span>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 whitespace-nowrap">
+            <Palette className="w-3 h-3 text-pink-400 shrink-0" />
+            <span>Colours</span>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 whitespace-nowrap">
+            <Layers className="w-3 h-3 text-cyan-400 shrink-0" />
+            <span>Layers</span>
           </div>
         </div>
 
@@ -215,8 +239,8 @@ export const CanvaWorkspaceVisual: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Mobile Preview & Color Swatches */}
-          <div className="hidden sm:flex col-span-3 flex-col gap-3">
+          {/* Right Mobile Preview & Color Swatches - Visible on all devices */}
+          <div className="col-span-12 sm:col-span-3 grid grid-cols-1 sm:grid-cols-1 gap-3 mt-3 sm:mt-0">
             
             {/* Smartphone Companion Mockup */}
             <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between">

@@ -23,7 +23,7 @@ export const Curriculum: React.FC<CurriculumProps> = ({ onRegisterClick }) => {
   const [activeDay, setActiveDay] = useState<number>(1);
 
   const handleDaySelect = (dayNum: number) => {
-    setActiveDay(activeDay === dayNum ? 0 : dayNum);
+    setActiveDay(dayNum);
     trackViewContent(`Curriculum Day ${dayNum}`);
   };
 

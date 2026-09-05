@@ -405,7 +405,8 @@ ${resetUrl}
 
 If you did not request a password reset, please ignore this email or check your server security logs immediately.
 
-— Clarity Digital Academy Security System`;
+Warm regards,
+Clarity Digital Academy Security System`;
 
   const htmlContent = `<!DOCTYPE html>
 <html>
