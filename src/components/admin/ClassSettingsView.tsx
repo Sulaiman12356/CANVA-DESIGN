@@ -59,8 +59,8 @@ export const ClassSettingsView: React.FC<ClassSettingsViewProps> = ({
       class_title: source.class_title || source.classTitle || source.class_name || 'Free 3-Day Canva Design Class',
       subtitle: source.subtitle || source.classSubtitle || 'Learn Skills. Earn Globally. Transform From a Complete Beginner to a Confident Visual Creator in 3 Practical Evenings.',
       description: source.description || source.classDescription || 'Master practical Canva design for real-world business, social media, marketing campaigns, and global client monetization.',
-      class_date: source.class_date || source.classDate || 'March 27th - 29th, 2026',
-      class_time: source.class_time || source.classTime || '8:00 PM – 9:30 PM (WAT)',
+      class_date: source.class_date || source.classDate || 'March 27th to 29th, 2026',
+      class_time: source.class_time || source.classTime || '8:00 PM to 9:30 PM (WAT)',
       start_time: source.start_time || source.classStartTime || '8:00 PM',
       end_time: source.end_time || source.classEndTime || '9:30 PM',
       timezone: source.timezone || 'WAT (UTC+1)',
@@ -531,7 +531,7 @@ export const ClassSettingsView: React.FC<ClassSettingsViewProps> = ({
                 type="text"
                 value={formData.class_date}
                 onChange={(e) => updateField('class_date', e.target.value)}
-                placeholder="e.g. Friday 5th – Sunday 7th September, 2026"
+                placeholder="e.g. Friday 5th to Sunday 7th September, 2026"
                 required
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
               />
@@ -542,12 +542,12 @@ export const ClassSettingsView: React.FC<ClassSettingsViewProps> = ({
               <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1.5">Quick Format Presets:</span>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  'March 27th - 29th, 2026',
-                  'Friday 5th – Sunday 7th September, 2026',
-                  'September 5 – 7, 2026',
-                  'Saturday 12th – Monday 14th September, 2026',
-                  'Friday 18th – Sunday 20th September, 2026',
-                  'Friday 25th – Sunday 27th September, 2026',
+                  'March 27th to 29th, 2026',
+                  'Friday 5th to Sunday 7th September, 2026',
+                  'September 5 to 7, 2026',
+                  'Saturday 12th to Monday 14th September, 2026',
+                  'Friday 18th to Sunday 20th September, 2026',
+                  'Friday 25th to Sunday 27th September, 2026',
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -577,7 +577,7 @@ export const ClassSettingsView: React.FC<ClassSettingsViewProps> = ({
                 </span>
                 <span>{formData.class_date || 'Date Not Configured'}</span>
                 <span className="text-slate-500">•</span>
-                <span className="text-amber-300">{formData.class_time || '8:00 PM – 9:30 PM (WAT)'}</span>
+                <span className="text-amber-300">{formData.class_time || '8:00 PM to 9:30 PM (WAT)'}</span>
               </div>
             </div>
           </div>
@@ -589,7 +589,7 @@ export const ClassSettingsView: React.FC<ClassSettingsViewProps> = ({
                 type="text"
                 value={formData.class_time}
                 onChange={(e) => updateField('class_time', e.target.value)}
-                placeholder="e.g. 8:00 PM – 9:30 PM (WAT)"
+                placeholder="e.g. 8:00 PM to 9:30 PM (WAT)"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500"
               />
             </div>

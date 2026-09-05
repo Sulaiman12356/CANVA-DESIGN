@@ -30,7 +30,7 @@ export const MentorSection: React.FC<MentorSectionProps> = ({ onRegisterClick })
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight leading-tight uppercase">
-            Hi, I'm Sulaiman —{' '}
+            Hi, I'm Sulaiman, widely known as{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-600 to-sky-600">
               Mr. Clarity.
             </span>
@@ -57,7 +57,7 @@ export const MentorSection: React.FC<MentorSectionProps> = ({ onRegisterClick })
                   MR. CLARITY
                 </p>
                 <p className="text-xs text-slate-400 font-medium">
-                  Founder — Clarity Digital Academy
+                  Founder, Clarity Digital Academy
                 </p>
                 <div className="pt-2">
                   <span className="inline-block text-[11px] font-bold text-amber-400 bg-amber-950/60 border border-amber-800/80 px-3 py-1 rounded-full">

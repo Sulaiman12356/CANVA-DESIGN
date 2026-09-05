@@ -236,7 +236,8 @@ WhatsApp Group:
 
 See you in class.
 
-— Mr. Clarity
+Warm regards,
+Mr. Clarity
 Clarity Digital Academy
 
 Learn Skills. Earn Globally.`,
@@ -259,7 +260,8 @@ All live video streams, template downloads, and daily challenges will be shared 
 
 See you inside!
 
-— Mr. Clarity`,
+Warm regards,
+Mr. Clarity`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -284,7 +286,8 @@ Class time: **Tomorrow at {{class_time}} (WAT)**.
 WhatsApp Group: {{whatsapp_group_link}}
 
 Excited to see you!
-— Onifade Sulaiman (Mr. Clarity)`,
+Warm regards,
+Onifade Sulaiman (Mr. Clarity)`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -303,7 +306,8 @@ Grab your notepad, open Canva, and join us inside the WhatsApp group for the dir
 
 Let's create something extraordinary today!
 
-— Mr. Clarity`,
+Warm regards,
+Mr. Clarity`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -322,7 +326,8 @@ Here is the direct access link and resource pack for today's session:
 
 Follow along step-by-step. If you have questions, drop them in the chat!
 
-— Clarity Digital Academy Team`,
+Warm regards,
+Clarity Digital Academy Team`,
     is_default: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -376,10 +381,10 @@ To your creative success,
 const INITIAL_SETTINGS: ClassSettingsRecord = {
   class_name: '3-Day Free Canva Design Class',
   class_title: '3-Day Free Canva Design Class',
-  class_subtitle: "Learn how to use Canva to create clean, attractive and professional designs with your smartphone or laptop — even if you've never designed before.",
+  class_subtitle: "Learn how to use Canva to create clean, attractive and professional designs with your smartphone or laptop, even if you've never designed before.",
   class_description: 'Intensive 3-day practical training on visual hierarchy, typography, flyer creation, and monetization.',
-  class_date: 'Friday 5th – Sunday 7th September, 2026',
-  class_time: '8:00 PM – 9:30 PM (WAT)',
+  class_date: 'Friday 5th to Sunday 7th September, 2026',
+  class_time: '8:00 PM to 9:30 PM (WAT)',
   class_start_time: '8:00 PM',
   class_end_time: '9:30 PM',
   timezone: 'WAT (UTC+1)',

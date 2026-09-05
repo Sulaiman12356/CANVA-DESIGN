@@ -1,6 +1,6 @@
 /**
  * Meta Ads Pixel & Conversions API (CAPI) Tracking Utility
- * Clarity Digital Academy — 3-Day Free Canva Design Class
+ * Clarity Digital Academy: 3-Day Free Canva Design Class
  *
  * Handles:
  * - Dynamic Meta Pixel initialization

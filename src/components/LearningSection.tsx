@@ -97,7 +97,7 @@ export const LearningSection: React.FC<LearningSectionProps> = ({ onRegisterClic
       id: 'devices',
       icon: Smartphone,
       title: 'Smartphone + Laptop Mastery',
-      description: 'Learn how to work with Canva regardless of the device in your hands — seamlessly switching between mobile app and laptop web browser.',
+      description: 'Learn how to work with Canva regardless of the device in your hands, switching smoothly between mobile app and laptop web browser.',
       tag: 'Any Device',
       badgeColor: 'bg-cyan-50 text-cyan-800 border-cyan-200',
       iconBg: 'bg-cyan-600 text-white',

@@ -122,7 +122,7 @@ export const Benefits: React.FC<BenefitsProps> = ({ onRegisterClick }) => {
             onClick={onRegisterClick}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base px-8 py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all inline-flex items-center gap-2 cursor-pointer"
           >
-            <span>Experience the Difference — Join Free</span>
+            <span>Experience the Difference: Join Free</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

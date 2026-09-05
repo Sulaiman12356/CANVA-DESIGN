@@ -539,7 +539,7 @@ END:VCALENDAR`;
                 this 3-day class will give you clarity, practical confidence, and monetizable skills. See you in the WhatsApp group!
               </p>
               <div className="pt-2 text-xs text-sky-300 font-bold">
-                — Onifade Sulaiman (Mr. Clarity), Founder @ Clarity Digital Academy
+                Onifade Sulaiman (Mr. Clarity), Founder, Clarity Digital Academy
               </div>
             </div>
           </div>

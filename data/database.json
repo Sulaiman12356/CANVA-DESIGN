@@ -137,7 +137,7 @@
       "name": "2. WhatsApp Group Reminder",
       "category": "Engagement",
       "subject": "⚠️ Important: Join your Canva Class WhatsApp Group before we start",
-      "body": "Hi {{first_name}},\n\nWe noticed you haven't joined the official WhatsApp group for our upcoming Free 3-Day Canva Design Class yet.\n\n👉 **Join here immediately**: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nAll live video streams, template downloads, and daily challenges will be shared exclusively inside the group.\n\nSee you inside!\n\n— Mr. Clarity",
+      "body": "Hi {{first_name}},\n\nWe noticed you haven't joined the official WhatsApp group for our upcoming Free 3-Day Canva Design Class yet.\n\n👉 **Join here immediately**: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nAll live video streams, template downloads, and daily challenges will be shared exclusively inside the group.\n\nSee you inside!\n\nWarm regards,\nMr. Clarity",
       "is_default": true,
       "created_at": "2026-08-31T01:24:51.434Z",
       "updated_at": "2026-08-31T01:24:51.434Z"
@@ -147,7 +147,7 @@
       "name": "3. Class Starts Tomorrow",
       "category": "Reminder",
       "subject": "⏰ Ready? The Free 3-Day Canva Class starts TOMORROW at 8:00 PM!",
-      "body": "Hello {{first_name}},\n\nTomorrow is Day 1 of the **Clarity Digital Academy 3-Day Free Canva Design Class**!\n\nHere is what we are covering tomorrow:\n🔹 Canva Interface & Essential Workspace Setup\n🔹 Typography, Color Palette Secrets & Visual Hierarchy\n🔹 Designing your very first high-converting flyer from scratch!\n\nEnsure your smartphone or laptop has the Canva app ready.\n\nClass time: **Tomorrow at 8:00 PM (WAT)**.\nWhatsApp Group: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nExcited to see you!\n— Onifade Sulaiman",
+      "body": "Hello {{first_name}},\n\nTomorrow is Day 1 of the **Clarity Digital Academy 3-Day Free Canva Design Class**!\n\nHere is what we are covering tomorrow:\n🔹 Canva Interface & Essential Workspace Setup\n🔹 Typography, Color Palette Secrets & Visual Hierarchy\n🔹 Designing your very first high-converting flyer from scratch!\n\nEnsure your smartphone or laptop has the Canva app ready.\n\nClass time: **Tomorrow at 8:00 PM (WAT)**.\nWhatsApp Group: https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nExcited to see you!\nWarm regards,\nOnifade Sulaiman",
       "is_default": true,
       "created_at": "2026-08-31T01:24:51.434Z",
       "updated_at": "2026-08-31T01:24:51.434Z"
@@ -157,7 +157,7 @@
       "name": "4. Class Starts Soon (1 Hour Notice)",
       "category": "Urgent",
       "subject": "🚨 Starting in 1 Hour: Day {{day}} Canva Live Workshop!",
-      "body": "Hey {{first_name}},\n\nWe are going live in exactly 1 hour for our practical Canva session!\n\nGrab your notepad, open Canva, and join us inside the WhatsApp group for the direct live streaming link:\n👉 https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nLet's create something extraordinary today!\n\n— Mr. Clarity",
+      "body": "Hey {{first_name}},\n\nWe are going live in exactly 1 hour for our practical Canva session!\n\nGrab your notepad, open Canva, and join us inside the WhatsApp group for the direct live streaming link:\n👉 https://chat.whatsapp.com/CVx4Z6ynhab15NsngAX07Y\n\nLet's create something extraordinary today!\n\nWarm regards,\nMr. Clarity",
       "is_default": true,
       "created_at": "2026-08-31T01:24:51.434Z",
       "updated_at": "2026-08-31T01:24:51.434Z"
@@ -167,7 +167,7 @@
       "name": "5. Class Link & Materials",
       "category": "Session",
       "subject": "🔗 Live Class Room Link & Today’s Canva Resource Bundle",
-      "body": "Hello {{first_name}},\n\nHere is the direct access link and resource pack for today's session:\n\n📌 **Live Class Link**: https://meet.google.com/cda-canva-live\n📌 **Canva Template Assets**: https://www.canva.com/templates\n\nFollow along step-by-step. If you have questions, drop them in the chat!\n\n— Clarity Digital Academy Team",
+      "body": "Hello {{first_name}},\n\nHere is the direct access link and resource pack for today's session:\n\n📌 **Live Class Link**: https://meet.google.com/cda-canva-live\n📌 **Canva Template Assets**: https://www.canva.com/templates\n\nFollow along step-by-step. If you have questions, drop them in the chat!\n\nWarm regards,\nClarity Digital Academy Team",
       "is_default": true,
       "created_at": "2026-08-31T01:24:51.434Z",
       "updated_at": "2026-08-31T01:24:51.434Z"
@@ -396,11 +396,11 @@
     "registered_count_override": 0,
     "cta_button_text": "RESERVE MY FREE SPOT",
     "cta_button_link": "#register",
-    "countdown_target_date": "2026-09-10T20:00",
+    "countdown_target_date": "2026-09-12T20:00",
     "meta_pixel_id": "1065001129595286",
     "automation_enabled": true,
     "automation_template_id": "tmpl_reg_confirmation",
-    "updated_at": "2026-09-05T01:15:11.036Z",
+    "updated_at": "2026-09-05T03:40:08.105Z",
     "total_registered": 0,
     "subtitle": "Learn Skills. Earn Globally. Transform From a Complete Beginner to a Confident Visual Creator in 3 Practical Evenings.",
     "description": "Master practical Canva design for real-world business, social media, marketing campaigns, and global client monetization.",
@@ -557,6 +557,32 @@
       "ip_address": "105.113.64.64",
       "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
       "timestamp": "2026-09-05T02:46:12.381Z"
+    },
+    {
+      "id": "ev_1788579248427_luhr",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/#the-problem",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.96.196",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-05T03:34:08.427Z"
+    },
+    {
+      "id": "ev_1788580191215_bk13",
+      "event": "page_view",
+      "url": "https://ais-dev-mjmtbl7r4xa6wyqqnzd3gf-111725295838.europe-west2.run.app/#the-problem",
+      "source": "direct",
+      "utm_source": "direct",
+      "utm_medium": "organic",
+      "utm_campaign": "canva_free_class",
+      "session_id": "sess_1788281909567_63duk",
+      "ip_address": "105.113.58.184",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-05T03:49:51.215Z"
     }
   ],
   "visitor_sessions": [
@@ -564,7 +590,7 @@
       "id": "sess_1788565497019_52wa",
       "session_id": "sess_1788544247635_omt2qiq",
       "entered_at": "2026-09-04T23:44:57.019Z",
-      "last_seen_at": "2026-09-05T03:28:29.387Z",
+      "last_seen_at": "2026-09-05T04:31:50.054Z",
       "active_seconds": 20,
       "device": "Desktop",
       "browser": "Chrome",

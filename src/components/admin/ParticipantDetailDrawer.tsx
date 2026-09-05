@@ -365,11 +365,11 @@ export const ParticipantDetailDrawer: React.FC<ParticipantDetailDrawerProps> = (
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">UTM Medium</span>
-                <span className="font-semibold text-slate-700">{participant.utm_medium || '—'}</span>
+                <span className="font-semibold text-slate-700">{participant.utm_medium || '-'}</span>
               </div>
               <div className="col-span-2">
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Campaign Name</span>
-                <span className="font-semibold text-slate-700">{participant.utm_campaign || '—'}</span>
+                <span className="font-semibold text-slate-700">{participant.utm_campaign || '-'}</span>
               </div>
               {participant.utm_content && (
                 <div>

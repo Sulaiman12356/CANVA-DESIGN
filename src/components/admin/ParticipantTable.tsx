@@ -517,7 +517,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
 
                       {/* Campaign */}
                       <td className="py-3 px-3 text-slate-500 whitespace-nowrap text-[11px]">
-                        {p.utm_campaign || '—'}
+                        {p.utm_campaign || '-'}
                       </td>
 
                       {/* Status */}
@@ -658,7 +658,7 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({
         <div className="p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600">
           <div className="flex items-center gap-3">
             <span>
-              Showing <strong className="text-slate-900">{totalCount > 0 ? startRecord : 0}</strong>–
+              Showing <strong className="text-slate-900">{totalCount > 0 ? startRecord : 0}</strong> to{' '}
               <strong className="text-slate-900">{endRecord}</strong> of{' '}
               <strong className="text-slate-900">{totalCount}</strong> participants
             </span>
