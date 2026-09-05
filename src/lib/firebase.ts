@@ -1,9 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
-  getDocFromServer,
   getDocs,
   setDoc,
   updateDoc,
@@ -89,11 +89,21 @@ export function handleFirestoreError(
 // 1. Initialize Firebase App
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// 2. Initialize Firestore (safely handles default and custom db)
-export const db =
-  firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app);
+// 2. Initialize Firestore with reliable long polling for sandbox/iframe environments
+export const db = (() => {
+  const dbId =
+    firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+      ? firebaseConfig.firestoreDatabaseId
+      : undefined;
+
+  try {
+    return dbId
+      ? initializeFirestore(app, { experimentalForceLongPolling: true }, dbId)
+      : initializeFirestore(app, { experimentalForceLongPolling: true });
+  } catch {
+    return dbId ? getFirestore(app, dbId) : getFirestore(app);
+  }
+})();
 
 // 3. Initialize Firebase Auth
 export const auth = getAuth(app);
@@ -109,20 +119,15 @@ if (typeof window !== 'undefined') {
   }).catch(() => {});
 }
 
-// 5. Validate Connection to Firestore on startup
+// 5. Check Connection to Firestore on demand without blocking or timing out
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    return true;
-  } catch (error: any) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firestore offline notice. Please check network connection.');
-    }
+    const snap = await getDoc(doc(db, 'class_settings', 'current'));
+    return snap.exists();
+  } catch {
     return false;
   }
 }
-
-testFirestoreConnection().catch(() => {});
 
 // Authorized Admin Email List
 export const AUTHORIZED_ADMIN_EMAILS = [
